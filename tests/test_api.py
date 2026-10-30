@@ -119,6 +119,10 @@ def test_demo_session_runs_the_state_machine(demo_client) -> None:
     assert r.status_code == 201 and r.json()["demo"] is True
     body = wait_for(demo_client, r.json()["session_id"], {"scored", "invalid"})
     assert body["outcome"] == "REFER"
+    # The simulated call must be scored against the fixture's own word form (C), not the rotation.
+    assert body["report"]["word_form"] == "C"
+    assert body["report"]["domains"]["delayed_recall"]["score"] == 2
+    assert body["report"]["domains"]["word_learning"]["total"] == 9
 
 
 def test_delete_wipes_data(demo_client) -> None:

@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Start a check - Smriti</title>
+<meta name="description" content="Smriti: a 5-minute phone memory check in Hindi or English. Pilot, not a diagnosis.">
+<link rel="stylesheet" href="/styles.css">
+<script src="/app.js" defer></script>
+<script src="/webcall.js" defer></script>
+</head>
+<body data-page="start">
+<header class="top"><div class="wrap">
+  <a class="brand" href="/index.html"><span class="brand-mark" aria-hidden="true"></span><span data-i18n="brand">Smriti</span></a>
+  <div class="top-actions">
+    <button id="lang-toggle" class="btn secondary small lang-toggle" type="button" data-i18n="lang_toggle">हिन्दी</button>
+  </div>
+</div></header>
+<main><div class="wrap">
+<p id="demo-banner" class="notice small" data-i18n="demo_banner" hidden></p>
+
+<h1 data-i18n="start_title"></h1>
+<p class="notice strong" data-i18n="not_diagnosis"></p>
+<form id="start-form" class="card" novalidate>
+  <div class="field">
+    <label class="check"><input type="checkbox" name="consent" id="consent"><span data-i18n="consent_label"></span></label>
+  </div>
+  <div class="field">
+    <label for="language" data-i18n="language_label"></label>
+    <select id="language" name="language">
+      <option value="hi" data-i18n="lang_hi"></option>
+      <option value="en" data-i18n="lang_en"></option>
+    </select>
+  </div>
+  <div class="field">
+    <label for="schooling" data-i18n="schooling_label"></label>
+    <input id="schooling" name="schooling" type="number" min="0" max="30" inputmode="numeric">
+    <p class="hint" data-i18n="schooling_hint"></p>
+  </div>
+  <fieldset class="field" style="border:0;padding:0;margin:0 0 18px">
+    <legend><label data-i18n="mode_label" style="margin-bottom:6px"></label></legend>
+    <div class="radio-row">
+      <label><input type="radio" name="mode" value="phone" checked> <span data-i18n="mode_phone"></span></label>
+      <label><input type="radio" name="mode" value="web"> <span data-i18n="mode_web"></span></label>
+    </div>
+  </fieldset>
+  <div class="field" id="phone-field">
+    <label for="phone" data-i18n="phone_label"></label>
+    <input id="phone" name="phone" type="tel" autocomplete="tel" placeholder="+91XXXXXXXXXX" maxlength="20">
+    <p class="hint" data-i18n="phone_hint"></p>
+  </div>
+  <div class="field" id="persona-field" hidden>
+    <label for="persona" data-i18n="persona_label"></label>
+    <select id="persona" name="persona">
+      <option value="normal" data-i18n="demo_normal"></option>
+      <option value="uncertain" data-i18n="demo_uncertain"></option>
+      <option value="refer" data-i18n="demo_refer"></option>
+      <option value="invalid_hearing" data-i18n="demo_invalid"></option>
+    </select>
+  </div>
+  <p id="form-error" class="error" role="alert"></p>
+  <button id="submit-btn" class="btn" type="submit" data-i18n="submit"></button>
+</form>
+<div id="webcall-box" class="card" hidden></div>
+</div></main>
+<footer><div class="wrap"><p data-i18n="footer"></p></div></footer>
+</body>
+</html>
