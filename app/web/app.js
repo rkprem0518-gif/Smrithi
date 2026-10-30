@@ -44,7 +44,9 @@ async function api(path, opts = {}) {
     try { body = await res.json(); } catch { body = null; }
   }
   if (!res.ok) {
-    const err = new Error((body && body.detail) || `HTTP ${res.status}`);
+    let detail = body && body.detail;
+    if (Array.isArray(detail)) detail = detail.map((d) => `${(d.loc || []).slice(-1)[0]}: ${d.msg}`).join("; ");
+    const err = new Error(detail || `HTTP ${res.status}`);
     err.status = res.status;
     throw err;
   }
@@ -128,6 +130,9 @@ function pageLive() {
       { class: i < idx || DONE.has(status) ? "done" : i === idx ? "active" : "" },
       el("span", { class: "dot", "aria-hidden": "true" }), t(`st_${s}`))));
     if (ENDED[status]) {
+      list.querySelectorAll("li.active").forEach((li) => li.classList.remove("active"));
+      const h1 = document.querySelector("h1");
+      if (h1) h1.textContent = t("live_ended_title");
       msg.replaceChildren(el("p", { class: "notice strong", text: t(ENDED[status]) + (error ? ` ${error}` : "") }),
         el("a", { class: "btn", href: "/start.html", text: t("try_again") }));
     }
@@ -154,9 +159,18 @@ function pageLive() {
 
 /* ------------------------------------------------------------------ report */
 
-const DAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
-const MONTHS = ["January", "February", "March", "April", "May", "June", "July", "August",
-  "September", "October", "November", "December"];
+const DAYS = {
+  en: ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"],
+  hi: ["सोमवार", "मंगलवार", "बुधवार", "गुरुवार", "शुक्रवार", "शनिवार", "रविवार"],
+};
+const MONTHS = {
+  en: ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"],
+  hi: ["जनवरी", "फ़रवरी", "मार्च", "अप्रैल", "मई", "जून", "जुलाई", "अगस्त", "सितंबर", "अक्टूबर", "नवंबर", "दिसंबर"],
+};
+const NAMED = {
+  hi: { winter: "सर्दी", summer: "गर्मी", monsoon: "बरसात", spring: "बसंत", autumn: "शरद",
+        morning: "सुबह", afternoon: "दोपहर", evening: "शाम", night: "रात" },
+};
 
 function wordLabel(w) { return LANG === "hi" ? `${w.hi} (${w.id})` : `${w.id} (${w.en})`; }
 
@@ -165,7 +179,8 @@ function wordChips(wordList, hits) {
   return el("ul", { class: "chips" }, wordList.map((w) => el("li", {
     class: `chip ${set.has(w.id) ? "hit" : "miss"}`,
     title: set.has(w.id) ? t("recalled") : t("not_recalled"),
-    text: wordLabel(w),
+    "aria-label": `${wordLabel(w)}: ${set.has(w.id) ? t("recalled") : t("not_recalled")}`,
+    text: `${set.has(w.id) ? "✓ " : ""}${wordLabel(w)}`,
   })));
 }
 
@@ -178,9 +193,9 @@ function scoreLine(score, max) { return el("div", { class: "score" }, String(sco
 
 function orientationAnswer(item, value) {
   if (value === null || value === undefined) return "-";
-  if (item === "day" && /^\d$/.test(value)) return DAYS[Number(value)];
-  if (item === "month" && /^\d{1,2}$/.test(value)) return MONTHS[Number(value) - 1];
-  return value;
+  if (item === "day" && /^\d$/.test(value)) return DAYS[LANG][Number(value)];
+  if (item === "month" && /^\d{1,2}$/.test(value)) return MONTHS[LANG][Number(value) - 1];
+  return (NAMED[LANG] || {})[value] || value;
 }
 
 function renderReport(root, s) {
@@ -205,7 +220,7 @@ function renderReport(root, s) {
   const animals = el("section", { class: "card" },
     el("h2", { text: t("animal_naming") }), el("div", { class: "score", text: String(d.animal_naming.count) }),
     el("div", { class: "small muted", text: t("animals_counted") }),
-    extraChips(d.animal_naming.words, "hit"),
+    extraChips(d.animal_naming.words.map((w) => (LANG === "hi" && r.animal_names && r.animal_names[w]) || w), "hit"),
     d.animal_naming.non_animals.length ? el("div", { class: "small muted" }, `${t("not_animals")}: `, d.animal_naming.non_animals.join(", ")) : null,
     el("p", { class: "small muted", text: d.animal_naming.experimental_timing ? t("timing_experimental") : t("timing_asr") }));
 
@@ -247,6 +262,7 @@ function renderReport(root, s) {
         el("h3", { text: t("invalid_reasons") }),
         el("ul", {}, r.invalid_reason_text.map((x) => el("li", { text: x[LANG] || x.en })))) : null,
       el("h3", { text: t("next_step") }), el("p", { text: nextStep }),
+      r.outcome === "INVALID" ? el("p", { class: "notice", text: t("invalid_caveat") }) : null,
       r.helpline_text ? el("p", { class: "notice" }, el("b", { text: `${t("helpline")}: ` }), r.helpline_text) : null),
     el("div", { class: "grid" }, recall, learning),
     el("div", { class: "grid" }, animals, orientation),
@@ -255,7 +271,7 @@ function renderReport(root, s) {
     markers,
     el("div", { class: "no-print", style: "display:flex;gap:10px;flex-wrap:wrap;margin-top:12px" },
       el("button", { class: "btn secondary", type: "button", onclick: () => window.print(), text: t("print_btn") }),
-      el("button", { class: "btn danger", type: "button", onclick: () => deleteSession(s.session_id, root), text: t("delete_btn") })),
+      s.is_demo ? null : el("button", { class: "btn danger", type: "button", onclick: () => deleteSession(s.session_id, root), text: t("delete_btn") })),
     el("p", { class: "small muted", text: `${t("scorer")}: ${r.scorer_version} · ${r.call_time || ""}` }),
   );
 }
@@ -273,8 +289,13 @@ async function pageReport() {
   let data;
   try {
     data = await api(`/api/sessions/${encodeURIComponent(id)}`);
-  } catch {
-    root.replaceChildren(el("p", { class: "notice", text: t("not_found") }));
+  } catch (err) {
+    root.replaceChildren(el("p", { class: "notice", text: err.status === 404 ? t("not_found") : t("load_error") }));
+    return;
+  }
+  if (ENDED[data.status]) {
+    root.replaceChildren(el("p", { class: "notice strong", text: t(ENDED[data.status]) }),
+      el("a", { class: "btn", href: "/start.html", text: t("try_again") }));
     return;
   }
   if (!data.report) {
@@ -282,7 +303,6 @@ async function pageReport() {
       el("a", { class: "btn", href: `/live.html?id=${encodeURIComponent(id)}`, text: t("live_title") }));
     return;
   }
-  if (!safeGet("smriti_lang") && data.report.language !== LANG) await loadLang(data.report.language);
   rerender = () => renderReport(root, data);
   rerender();
 }
@@ -302,13 +322,15 @@ function pageReview() {
     list.replaceChildren(...items.map((it) => {
       const r = it.report || {};
       const status = el("p", { class: "small", role: "status" });
+      const fid = (name) => `${name}-${it.session_id}`;
       const decisionForm = el("form", { class: "no-print" },
-        el("div", { class: "field" }, el("label", { text: t("decision") }),
-          el("select", { name: "decision" }, ["agree", "retest", "override_normal", "override_refer"]
+        el("div", { class: "field" }, el("label", { for: fid("decision"), text: t("decision") }),
+          el("select", { id: fid("decision"), name: "decision" }, ["agree", "retest", "override_normal", "override_refer"]
             .map((v) => el("option", { value: v, text: t(`dec_${v}`) })))),
-        el("div", { class: "field" }, el("label", { text: t("reviewer_name") }),
-          el("input", { type: "text", name: "reviewer", required: true, maxlength: "80" })),
-        el("div", { class: "field" }, el("label", { text: t("note") }), el("textarea", { name: "note", maxlength: "2000" })),
+        el("div", { class: "field" }, el("label", { for: fid("reviewer"), text: t("reviewer_name") }),
+          el("input", { id: fid("reviewer"), type: "text", name: "reviewer", required: true, maxlength: "80" })),
+        el("div", { class: "field" }, el("label", { for: fid("note"), text: t("note") }),
+          el("textarea", { id: fid("note"), name: "note", maxlength: "2000" })),
         el("button", { class: "btn", type: "submit", text: t("save") }), status);
       decisionForm.addEventListener("submit", async (ev) => {
         ev.preventDefault();
@@ -319,6 +341,10 @@ function pageReview() {
                                    note: decisionForm.note.value }),
           });
           status.textContent = t("saved");
+          if (!form.all.checked) {
+            items = items.filter((x) => x.session_id !== it.session_id);
+            setTimeout(draw, 900);
+          }
         } catch (err) { status.textContent = err.message; }
       });
       return el("article", { class: "card" },
@@ -333,7 +359,7 @@ function pageReview() {
           el("audio", { controls: true, preload: "none", src: it.recording_url, style: "width:100%" })) : null,
         el("details", {}, el("summary", { text: t("transcript") }),
           el("div", { class: "transcript" }, (it.transcript || []).map((turn) => el("p", { class: turn.role },
-            el("b", { text: turn.role === "agent" ? "Smriti: " : "User: " }), turn.text)))),
+            el("b", { text: turn.role === "agent" ? `${t("brand")}: ` : `${t("speaker_user")}: ` }), turn.text)))),
         decisionForm);
     }));
   };
