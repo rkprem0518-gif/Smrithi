@@ -102,12 +102,15 @@ orientation:
     evening: {hours: [16, 20], words: [evening, shaam, sham, शाम, sandhya, संध्या]}
     night: {hours: [20, 29], words: [night, raat, rat, रात]}   # 20:00 to 05:00 next day
   time_boundary_tolerance_minutes: 45   # near a boundary, the neighbouring period also counts
-  dont_know: [pata nahi, pata nahin, nahi pata, malum nahi, maloom nahi, yaad nahi,
-              dont know, do not know, not sure, no idea, पता नहीं, मालूम नहीं, याद नहीं]
+  dont_know: [pata nahi, pata nahin, nahi pata, malum nahi, maloom nahi, nahi malum, nahi maloom, yaad nahi,
+              bhool gayi, bhool gaya, bhul gayi, bhul gaya, naam bhool, dont know, do not know, not sure,
+              no idea, पता नहीं, नहीं पता, मालूम नहीं, नहीं मालूम, याद नहीं, भूल गई, भूल गयी, भूल गया, नाम भूल]
 
 # Yes/no parsing for consent and the "is anyone helping you?" question.
-yes_words: [haan, han, haanji, hanji, ji, yes, yeah, bilkul, theek, thik, ok, okay, zaroor, हाँ, हां, जी, ठीक, बिल्कुल]
-no_words: [nahi, nahin, nai, no, nope, mat, koi nahi, akela, akele, अकेले, अकेला, नहीं, ना]
+# "ji"/"जी" is an honorific ("नहीं जी" = no); it only counts as yes when said on its own (see parse_yes_no).
+yes_words: [haan, han, haanji, hanji, yes, yeah, bilkul, theek, thik, ok, okay, zaroor, हाँ, हां, जी हाँ, ठीक, बिल्कुल]
+# "ना"/"na" is left out on purpose: it is usually a tag particle ("बता रही थी ना").
+no_words: [nahi, nahin, nai, no, nope, koi nahi, akela, akele, akeli, अकेले, अकेला, अकेली, नहीं, नही]
 
 # Experimental speech markers (shown in a collapsed section; NEVER used for the outcome).
 speech_markers:

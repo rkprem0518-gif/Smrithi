@@ -20,9 +20,9 @@ _DIGIT_WORDS_RAW = {
     4: ["four", "char", "chaar", "चार"],
     5: ["five", "panch", "paanch", "पाँच", "पांच"],
     6: ["six", "chhe", "che", "chhah", "chah", "chheh", "छह", "छः", "छे"],
-    7: ["seven", "saat", "sat", "सात"],
+    7: ["seven", "saat", "sat", "सात", "साथ", "sath", "saath"],  # STT often writes साथ
     8: ["eight", "aath", "aat", "आठ"],
-    9: ["nine", "nau", "nao", "नौ"],
+    9: ["nine", "nau", "nao", "नौ", "नो", "नव"],
 }
 DIGIT_WORDS: dict[str, str] = {
     t.key: str(d) for d, words in _DIGIT_WORDS_RAW.items() for w in words for t in tokenize(w)
@@ -50,17 +50,45 @@ _NUMBER_WORDS_RAW = {
     16: ["sixteen", "solah", "सोलह"],
     17: ["seventeen", "satrah", "postgraduate", "msc", "mcom", "सत्रह"],
     18: ["eighteen", "atharah", "अठारह"], 19: ["nineteen", "unnis", "उन्नीस"],
-    20: ["twenty", "bees", "phd", "बीस"],
+    20: ["twenty", "bees", "phd", "बीस", "पीएचडी"],
 }
+_DEGREES = {
+    14: ["college", "कॉलेज"],
+    15: ["बीए", "बीएससी", "बीकॉम", "बीकोम", "डिग्री", "bsc", "bcom", "ba"],
+    17: ["एमए", "एमएससी", "एमकॉम", "mba", "एमबीए", "msc", "mcom"],
+}
+for _n, _words in _DEGREES.items():
+    _NUMBER_WORDS_RAW.setdefault(_n, []).extend(_words)
+# Bare cardinals ("ek", "do") are weak evidence: "एक बात बताऊँ... बारहवीं" means 12, not 1.
+_CARDINALS = [
+    "zero", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine", "ten", "eleven", "twelve",
+    "ek", "do", "teen", "char", "chaar", "panch", "paanch", "chhe", "chhah", "saat", "aath", "nau", "das", "dus",
+    "एक", "दो", "तीन", "चार", "पाँच", "पांच", "छह", "सात", "आठ", "नौ", "दस", "ग्यारह", "बारह",
+]
 NUMBER_WORDS: dict[str, int] = {
     t.key: n for n, words in _NUMBER_WORDS_RAW.items() for w in words for t in tokenize(w)
 }
+CARDINAL_KEYS = frozenset(t.key for w in _CARDINALS for t in tokenize(w))
+_ABBREV_DOT = re.compile(r"(?<=\S)\.(?=\S)")
 
 PLACE_QUESTION = (
     "gaon", "gav", "ganv", "gaanv", "शहर", "गाँव", "shahar", "jagah", "kahan",
     "town", "village", "city", "place",
 )
-HELPER_QUESTION = ("madad", "help", "helping", "sahayata", "bata raha", "bata rahi")
+HELPER_QUESTION = ("madad", "मदद", "help", "helping", "sahayata", "bata raha", "bata rahi")
+# Someone was telling the answers ("बेटी बता रही थी") even without an explicit "yes".
+HELPER_SAYS = ("bata raha", "bata rahi", "bata rahe", "बता रहा", "बता रही", "बता रहे", "मदद कर रहा",
+               "मदद कर रही", "मदद कर रहे", "madad kar raha", "madad kar rahi", "was helping", "helped me")
+REPEAT_REQUEST = ("phir se", "fir se", "dobara", "repeat", "again", "kya bola", "sunai nahi", "samajh nahi",
+                  "फिर से", "दोबारा", "क्या बोला", "क्या बोली", "सुनाई नहीं", "समझ नहीं")
+# Which orientation item an agent question asks about, checked in this priority order.
+ORIENTATION_QUESTIONS = (
+    ("time_of_day", ("samay", "समय", "time", "morning", "evening", "subah", "सुबह")),
+    ("season", ("mausam", "मौसम", "season", "ritu", "ऋतु")),
+    ("month", ("mahina", "महीना", "month", "mahine", "महीने")),
+    ("place", PLACE_QUESTION),
+    ("day", ("din", "दिन", "day", "vaar", "वार")),
+)
 
 
 # ---------------------------------------------------------------- helpers
@@ -86,14 +114,27 @@ def contains_phrase(text: str, phrases: frozenset[str]) -> bool:
     return any(f" {p} " in keyed for p in phrases)
 
 
+def _phrase_keys(phrases: tuple[str, ...]) -> frozenset[str]:
+    return frozenset(" ".join(t.key for t in tokenize(p)) for p in phrases)
+
+
 def parse_yes_no(text: str, cfg: ScoringConfig) -> bool | None:
-    """True = yes, False = no, None = unclear. A negation anywhere wins."""
+    """True = yes, False = no, None = unclear. The LAST yes/no word wins (self-corrections:
+    "नहीं नहीं... हाँ" = yes)."""
     toks = tokenize(text)
-    if find_matches(toks, cfg.no_lexicon, threshold=100)[0]:
-        return False
-    if find_matches(toks, cfg.yes_lexicon, threshold=100)[0]:
-        return True
-    return None
+    no = find_matches(toks, cfg.no_lexicon, threshold=100)[0]
+    yes = find_matches(toks, cfg.yes_lexicon, threshold=100)[0]
+    if not no and not yes:
+        # A bare honorific "जी" / "ji" is a polite yes.
+        return True if any(t.raw == "ji" for t in toks) else None
+    last_no = no[-1].position if no else -1
+    last_yes = yes[-1].position if yes else -1
+    return last_yes > last_no
+
+
+REPEAT_REQUEST_KEYS = _phrase_keys(REPEAT_REQUEST)
+HELPER_SAYS_KEYS = _phrase_keys(HELPER_SAYS)
+ORIENTATION_QUESTION_KEYS = tuple((item, _phrase_keys(words)) for item, words in ORIENTATION_QUESTIONS)
 
 
 def digit_sequence(text: str) -> str:
@@ -150,7 +191,8 @@ def score_hearing(turns: list[Turn], cfg: ScoringConfig) -> dict[str, Any]:
         items.append({
             "expected": exp,
             "heard": [h for h in heard if h],
-            "correct": any(exp in h for h in heard),
+            # Older speakers pause between digits, so one answer can arrive as two user turns.
+            "correct": any(exp in h for h in heard) or exp in "".join(heard),
             "answered": any(has_content(t.text) for t in responses),
         })
     correct = sum(i["correct"] for i in items)
@@ -169,13 +211,18 @@ def parse_schooling_years(turns: list[Turn], cfg: ScoringConfig) -> int | None:
     An answer with a negation and no number ("नहीं, कभी स्कूल नहीं गई") means none (0);
     "I don't know" stays unknown.
     """
+    weak: int | None = None
     for t in user_turns(turns):
-        for tok in tokenize(t.text):
+        for tok in tokenize(_ABBREV_DOT.sub("", t.text)):
             m = re.match(r"^(\d+)(st|nd|rd|th|vi|vin|va)?$", tok.raw)
             if m and int(m.group(1)) <= 25:
                 return int(m.group(1))
             if tok.key in NUMBER_WORDS:
-                return NUMBER_WORDS[tok.key]
+                if tok.key not in CARDINAL_KEYS:
+                    return NUMBER_WORDS[tok.key]  # class name, ordinal or degree
+                weak = NUMBER_WORDS[tok.key] if weak is None else weak
+    if weak is not None:
+        return weak
     for t in user_turns(turns):
         if not contains_phrase(t.text, cfg.dont_know) and parse_yes_no(t.text, cfg) is False:
             return 0
@@ -203,13 +250,30 @@ def _is_reading(turn: Turn, lexicon: Lexicon, cfg: ScoringConfig) -> bool:
     return len({m.canonical for m in matches}) >= int(cfg.raw["learning"]["reading_min_list_words"])
 
 
+def _trial_answered(trial: list[Turn], lexicon: Lexicon, cfg: ScoringConfig) -> bool:
+    """Did the person attempt recall? A repeat request ("फिर से बोलिए") or "हाँ हाँ" is not an attempt,
+    so a re-read after it continues the same trial instead of starting the next one."""
+    text = " ".join(t.text for t in user_turns(trial))
+    if not text.strip():
+        return False
+    if find_matches(tokenize(text), lexicon, cfg.threshold, cfg.stopwords)[0]:
+        return True
+    if contains_phrase(text, REPEAT_REQUEST_KEYS):
+        return False
+    if contains_phrase(text, cfg.dont_know):
+        return True
+    content = [t for t in tokenize(text) if t.stop_key not in cfg.stopwords and len(t.raw) >= 3]
+    return len(content) >= 3
+
+
 def split_trials(turns: list[Turn], lexicon: Lexicon, cfg: ScoringConfig) -> list[list[Turn]]:
-    """Each agent turn that reads the list starts a new trial; user turns after it belong to it."""
+    """Each agent turn that reads the list starts a new trial (unless the open trial has no recall
+    attempt yet); user turns after it belong to that trial."""
     n_trials = int(cfg.raw["learning"]["trials"])
     trials: list[list[Turn]] = []
     for t in turns:
         if _is_reading(t, lexicon, cfg):
-            if not trials or any(x.role == "user" for x in trials[-1]):
+            if not trials or _trial_answered(trials[-1], lexicon, cfg):
                 trials.append([])
             continue
         if trials:
@@ -282,9 +346,38 @@ def _last_match(tokens: list[Token], lexicon: Lexicon, cfg: ScoringConfig) -> tu
     return (matches[-1].canonical, matches[-1].position) if matches else None
 
 
+def orientation_answers(turns: list[Turn]) -> dict[str, str | None]:
+    """Text of the user's answer to each orientation question (None if the question wasn't found).
+
+    Each agent question is assigned to one item by keyword (priority: time of day, season,
+    month, place, day), so "मै सोनीपत में" in the place answer cannot turn the month into May.
+    """
+    answers: dict[str, list[str]] = {}
+    current: str | None = None
+    for t in turns:
+        if t.role == "agent":
+            keyed = _key_text(t.text)
+            found = next(
+                (item for item, keys in ORIENTATION_QUESTION_KEYS if any(f" {k} " in keyed for k in keys)), None
+            )
+            if found:
+                current = found
+                answers.setdefault(found, [])
+            continue
+        if current:
+            answers[current].append(t.text)
+    return {item: " ".join(answers[item]) if item in answers else None for item, _ in ORIENTATION_QUESTION_KEYS}
+
+
 def score_orientation(turns: list[Turn], call_time: datetime, cfg: ScoringConfig) -> dict[str, Any]:
     local = _ist(call_time, cfg)
-    toks = user_tokens(turns)
+    per_item = orientation_answers(turns)
+    all_tokens = user_tokens(turns)
+
+    def toks(item: str) -> list[Token]:
+        text = per_item[item]
+        return all_tokens if text is None else tokenize(text)  # question not found: scan everything
+
     month_ok_seasons = {str(s) for s in cfg.raw["orientation"]["season_by_month"][local.month]}
     expected = {
         "day": local.strftime("%A"),
@@ -295,12 +388,12 @@ def score_orientation(turns: list[Turn], call_time: datetime, cfg: ScoringConfig
     items: dict[str, bool] = {}
     answers: dict[str, str | None] = {}
 
-    day = _last_match(toks, cfg.day_lexicon, cfg)
+    day = _last_match(toks("day"), cfg.day_lexicon, cfg)
     answers["day"] = day[0] if day else None
     items["day"] = day is not None and int(day[0]) == local.weekday()
 
-    greg = _last_match(toks, cfg.month_lexicon, cfg)
-    hindu = _last_match(toks, cfg.hindu_month_lexicon, cfg)
+    greg = _last_match(toks("month"), cfg.month_lexicon, cfg)
+    hindu = _last_match(toks("month"), cfg.hindu_month_lexicon, cfg)
     if greg and (not hindu or greg[1] >= hindu[1]):
         answers["month"] = greg[0]
         items["month"] = int(greg[0]) == local.month
@@ -310,25 +403,28 @@ def score_orientation(turns: list[Turn], call_time: datetime, cfg: ScoringConfig
     else:
         answers["month"], items["month"] = None, False
 
-    season = _last_match(toks, cfg.season_lexicon, cfg)
+    season = _last_match(toks("season"), cfg.season_lexicon, cfg)
     answers["season"] = season[0] if season else None
     items["season"] = season is not None and season[0] in month_ok_seasons
 
-    tod = _last_match(toks, cfg.time_lexicon, cfg)
+    tod = _last_match(toks("time_of_day"), cfg.time_lexicon, cfg)
     answers["time_of_day"] = tod[0] if tod else None
     items["time_of_day"] = tod is not None and tod[0] in expected["time_of_day"]
 
-    place_text, asked = _answer_after(turns, PLACE_QUESTION)
-    if not asked:
+    place_text = per_item["place"]
+    if place_text is None:
         users = user_turns(turns)
         place_text = users[-1].text if users else ""
     place_content = [
         t for t in tokenize(place_text) if t.stop_key not in cfg.stopwords and len(t.raw) >= 3
     ]
-    dont_know = contains_phrase(place_text, cfg.dont_know)
     answers["place"] = place_text.strip() or None
-    items["place"] = bool(place_content) and not dont_know
+    items["place"] = bool(place_content) and not contains_phrase(place_text, cfg.dont_know)
 
+    if any(v is not None for v in per_item.values()):
+        answered = sum(bool(v and has_content(v)) for v in per_item.values())
+    else:
+        answered = min(5, sum(has_content(t.text) for t in user_turns(turns)))
     return {
         "score": sum(items.values()),
         "max": 5,
@@ -336,7 +432,7 @@ def score_orientation(turns: list[Turn], call_time: datetime, cfg: ScoringConfig
         "answers": answers,
         "expected": expected,
         "place_verified": False,  # we cannot check the town/village; a reviewer can
-        "answered_turns": sum(has_content(t.text) for t in user_turns(turns)),
+        "answered_items": answered,
         "call_time_local": local.isoformat(),
     }
 
@@ -350,17 +446,37 @@ def score_recall(turns: list[Turn], form: str, cfg: ScoringConfig) -> dict[str, 
         "repeats": res["repeats"],
         "intrusions": res["intrusions"],
         "answered": any(has_content(t.text) for t in user_turns(turns)),
-        "reached": bool(user_turns(turns)),
+        # The agent moving on after the recall question also proves the task was reached
+        # (silence is a valid, low-scoring answer, not an early hang-up).
+        "reached": bool(user_turns(turns)) or sum(t.role == "agent" for t in turns) > 1,
     }
 
 
 def detect_helper(turns: list[Turn], cfg: ScoringConfig) -> bool | None:
-    """Answer to "Is anyone helping you answer?" (True = someone is helping)."""
-    answer, asked = _answer_after(turns, HELPER_QUESTION)
-    if not asked or not answer:
-        return None
-    yn = parse_yes_no(answer, cfg)
-    return None if yn is None else yn
+    """Answer to "Is anyone helping you answer?" (True = someone is helping, None = unclear).
+
+    `turns` is the close segment: its first agent turn is the helper question (it carries the
+    close marker), so the answer is the user turns right after it, whatever the wording.
+    """
+    answer: list[str] = []
+    started = False
+    for t in turns:
+        if t.role == "agent":
+            if started and answer:
+                break
+            started = True
+            continue
+        if started:
+            answer.append(t.text)
+    text = " ".join(answer)
+    if not text.strip():
+        text, asked = _answer_after(turns, HELPER_QUESTION)
+        if not asked or not text.strip():
+            return None
+    yn = parse_yes_no(text, cfg)
+    if yn is None and contains_phrase(text, HELPER_SAYS_KEYS):
+        return True
+    return yn
 
 
 def detect_consent(preamble: list[Turn], cfg: ScoringConfig) -> bool | None:
