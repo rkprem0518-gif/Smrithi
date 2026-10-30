@@ -1,0 +1,59 @@
+# Smriti word lists - PILOT ONLY, original lists, not a validated instrument.
+# Inspired by the 10/66 Dementia Research Group battery (10-word learning + delayed recall).
+# Rules: culturally familiar, concrete, no animals (task 4 is animal naming), no overlap between forms.
+#
+# Each word: id (canonical Latin), hi (Devanagari, read aloud on Hindi calls),
+# en (read aloud on English calls), variants (any spelling the ASR may produce).
+# Matching accepts id, hi, en and every variant (after transliteration + fuzzy match).
+
+forms:
+  A:
+    - {id: ghar,    hi: घर,      en: house,  variants: [gharr, ghr, gar, makaan, मकान, home]}
+    - {id: paani,   hi: पानी,    en: water,  variants: [pani, paanee, panee, jal, जल]}
+    - {id: ped,     hi: पेड़,     en: tree,   variants: [per, perh, pedh, पेड, vriksh]}
+    - {id: roti,    hi: रोटी,    en: bread,  variants: [rotee, rooti, chapati, chapatti, चपाती]}
+    - {id: kitaab,  hi: किताब,   en: book,   variants: [kitab, kitaabein, kitabein, pustak, पुस्तक]}
+    - {id: chaabi,  hi: चाबी,    en: key,    variants: [chabi, chaabee, chabhi, chaabhi, चाभी]}
+    - {id: darwaza, hi: दरवाज़ा,  en: door,   variants: [darwaja, darvaza, darvaja, दरवाजा, dwar]}
+    - {id: chaand,  hi: चाँद,    en: moon,   variants: [chand, chaand, चांद, chanda, चंदा]}
+    - {id: kursi,   hi: कुर्सी,   en: chair,  variants: [kursee, kurshi, कुरसी]}
+    - {id: phool,   hi: फूल,     en: flower, variants: [phul, fool, ful, pushp]}
+  B:
+    - {id: nadi,    hi: नदी,     en: river,    variants: [nadee, nadi, darya, दरिया]}
+    - {id: chappal, hi: चप्पल,   en: slippers, variants: [chapal, chappals, slipper, चपल]}
+    - {id: aam,     hi: आम,      en: mango,    variants: [aamm, mangoes, आम्र]}
+    - {id: ghadi,   hi: घड़ी,     en: watch,    variants: [ghari, gadi, ghadee, घडी, clock]}
+    - {id: gilaas,  hi: गिलास,   en: glass,    variants: [gilas, glaas, ग्लास]}
+    - {id: thali,   hi: थाली,    en: plate,    variants: [thaali, thalee, thaal]}
+    - {id: baadal,  hi: बादल,    en: cloud,    variants: [badal, baadal, clouds]}
+    - {id: sabun,   hi: साबुन,   en: soap,     variants: [saabun, saboon, sabun]}
+    - {id: taala,   hi: ताला,    en: lock,     variants: [tala, taalaa]}
+    - {id: pankha,  hi: पंखा,    en: fan,      variants: [pankhaa, panka, पँखा]}
+  C:
+    - {id: diya,    hi: दीया,    en: lamp,     variants: [diya, deeya, diyaa, दिया, deepak, दीपक]}
+    - {id: rassi,   hi: रस्सी,   en: rope,     variants: [rasi, rassee, rasee]}
+    - {id: chhata,  hi: छाता,    en: umbrella, variants: [chata, chhaata, chaata, छतरी, chhatri]}
+    - {id: patta,   hi: पत्ता,   en: leaf,     variants: [pata, pattaa, patti, पत्ती, leaves]}
+    - {id: bazaar,  hi: बाज़ार,   en: market,   variants: [bazar, baazaar, बाजार, haat, हाट]}
+    - {id: kapda,   hi: कपड़ा,   en: cloth,    variants: [kapra, kapada, kapde, कपड़े, clothes]}
+    - {id: dhoop,   hi: धूप,     en: sunlight, variants: [dhup, dhoop, sunshine, sun light]}
+    - {id: chammach, hi: चम्मच,  en: spoon,    variants: [chamach, chammach, chamcha, चमचा]}
+    - {id: botal,   hi: बोतल,    en: bottle,   variants: [bottal, botel, bottle]}
+    - {id: mez,     hi: मेज़,     en: table,    variants: [mej, mez, मेज]}
+
+# Common Hindi/English filler that must never be matched as a list word or an animal.
+stopwords: [
+  a, an, the, i, am, is, are, was, and, or, so, ok, okay, yes, no, um, uh, hmm, umm, mm, er, ah,
+  me, my, it, to, of, in, on, that, this, what, then, also, know, dont, remember, sure, think,
+  haan, han, ha, ji, haanji, nahi, nahin, nai, na, aur, phir, fir, ek, kya, kuch, mujhe, mai, main,
+  hai, hain, tha, thi, the, to, toh, bhi, wo, woh, ye, yeh, matlab, accha, acha, theek, thik,
+  bas, yaad, nahi, pata, sab, aa, raha, rahi, hum, ham, aap, beta, ab, abhi, kaun, sa, ka, ki, ke,
+  se, ko, par, pe, ne, ho, hoga, hogi, jo, ji, dekho, suno, haa, achha
+]
+
+# Devanagari filler, applied only to tokens written in Devanagari (so आम is never dropped as "am").
+stopwords_devanagari: [
+  हाँ, हां, जी, नहीं, ना, और, फिर, एक, क्या, कुछ, मुझे, मैं, है, हैं, था, थी, थे, तो, भी, वो, वह,
+  ये, यह, मतलब, अच्छा, ठीक, बस, याद, पता, सब, हम, आप, बेटा, बेटी, अब, अभी, कौन, सा, का, की, के,
+  से, को, पर, पे, ने, हो, जो, बाकी, नाम, में, हूँ, हूं, रहा, रही, गया, गई, लिया, आया
+]

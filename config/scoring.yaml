@@ -1,0 +1,114 @@
+# ============================================================================
+#  Smriti scoring rules - PILOT PLACEHOLDERS. NOT VALIDATED. NOT A DIAGNOSIS.
+#  Every cutoff below is a starting point for a pilot and must be re-derived from
+#  local normative data with clinicians before any real-world use.
+# ============================================================================
+
+matching:
+  fuzzy_threshold: 85          # rapidfuzz ratio (0-100) after transliteration + phonetic keys
+
+schooling:
+  low_band_max_years: 10       # <= 10 years (including none) -> LOW, > 10 -> HIGH
+  unknown_band: LOW            # used when schooling is unknown (flagged in the report)
+
+hearing:
+  digit_strings: ["472", "395", "816"]   # the agent reads these (see prompts/smriti_agent.md)
+  min_correct: 2                          # fewer than 2 of 3 -> INVALID (hearing/line)
+
+learning:
+  trials: 3
+  reading_min_list_words: 5    # an agent turn naming >= 5 list words is a "reading" (starts a trial)
+
+fluency:
+  window_seconds: 60           # only used when timestamps are available (ASR fallback)
+
+# Outcome bands. DR = delayed recall (0-10), F = animals named, O = orientation (0-5).
+bands:
+  LOW:
+    refer_if_dr_at_most: 2
+    uncertain_if_dr_equals: 3
+    secondary_uncertain: {fluency_below: 8, orientation_at_most: 3}
+  HIGH:
+    refer_if_dr_at_most: 3
+    uncertain_if_dr_equals: 4
+    secondary_uncertain: {fluency_below: 11, orientation_at_most: 3}
+
+invalid:
+  max_empty_answer_fraction: 0.30   # > 30% of expected answers empty/unintelligible -> INVALID
+  helper_present_is_invalid: true
+
+# Orientation answer keys. Calls are scored in India Standard Time (UTC+05:30).
+orientation:
+  utc_offset_minutes: 330
+  days:
+    0: [monday, somvar, somwar, सोमवार, som]
+    1: [tuesday, mangalvar, mangalwar, मंगलवार, mangal]
+    2: [wednesday, budhvar, budhwar, बुधवार, budh]
+    3: [thursday, guruvar, guruwar, गुरुवार, brihaspativar, बृहस्पतिवार, veervar, वीरवार]
+    4: [friday, shukravar, shukrawar, शुक्रवार, shukra, jumma, जुम्मा]
+    5: [saturday, shanivar, shaniwar, शनिवार, shani]
+    6: [sunday, ravivar, raviwar, रविवार, itvaar, itwar, इतवार]
+  months:
+    1: [january, janvari, janwari, जनवरी]
+    2: [february, farvari, farwari, फरवरी, फ़रवरी]
+    3: [march, maarch, मार्च]
+    4: [april, aprail, अप्रैल]
+    5: [may, mai, मई]
+    6: [june, joon, jun, जून]
+    7: [july, julai, जुलाई]
+    8: [august, agast, अगस्त]
+    9: [september, sitambar, सितंबर, सितम्बर]
+    10: [october, aktubar, aktoobar, अक्टूबर, अक्तूबर]
+    11: [november, navambar, नवंबर, नवम्बर]
+    12: [december, disambar, दिसंबर, दिसम्बर]
+  # Traditional Hindu months overlap two Gregorian months; either is accepted (fair to
+  # people who track time by the traditional calendar).
+  hindu_months:
+    1: [paush, पौष, magh, माघ]
+    2: [magh, माघ, phalgun, फागुन, फाल्गुन]
+    3: [phalgun, फागुन, chaitra, चैत, चैत्र]
+    4: [chaitra, चैत, baisakh, बैसाख, vaishakh]
+    5: [baisakh, बैसाख, jeth, जेठ]
+    6: [jeth, जेठ, asadh, आषाढ़, asaadh]
+    7: [asadh, आषाढ़, sawan, सावन, shravan]
+    8: [sawan, सावन, bhadon, भादों, bhadrapad]
+    9: [bhadon, भादों, ashwin, आश्विन, kwar, क्वार]
+    10: [ashwin, आश्विन, kwar, क्वार, kartik, कार्तिक]
+    11: [kartik, कार्तिक, agahan, अगहन, margashirsha]
+    12: [agahan, अगहन, paush, पौष, poos, पूस]
+  seasons:
+    winter: [winter, sardi, sardiyan, सर्दी, सर्दियाँ, thand, thandi, ठंड, ठंडी, jaada, जाड़ा, sheet, शीत]
+    summer: [summer, garmi, garmiyan, गर्मी, गर्मियाँ, grishm, ग्रीष्म]
+    monsoon: [monsoon, rainy, rain, rains, barsaat, barsat, बरसात, baarish, barish, बारिश, varsha, वर्षा]
+    spring: [spring, basant, vasant, बसंत, वसंत]
+    autumn: [autumn, sharad, शरद, patjhad, पतझड़, festive]
+  # Seasons accepted for each month (lenient: neighbouring seasons accepted too).
+  season_by_month:
+    1: [winter]
+    2: [winter, spring]
+    3: [spring, summer]
+    4: [summer, spring]
+    5: [summer]
+    6: [summer, monsoon]
+    7: [monsoon]
+    8: [monsoon]
+    9: [monsoon, autumn]
+    10: [autumn, winter, monsoon]
+    11: [winter, autumn]
+    12: [winter]
+  times_of_day:
+    morning: {hours: [5, 12], words: [morning, subah, subha, सुबह, savera, सवेरा]}
+    afternoon: {hours: [12, 16], words: [afternoon, dopahar, dopehar, दोपहर, noon]}
+    evening: {hours: [16, 20], words: [evening, shaam, sham, शाम, sandhya, संध्या]}
+    night: {hours: [20, 29], words: [night, raat, rat, रात]}   # 20:00 to 05:00 next day
+  time_boundary_tolerance_minutes: 45   # near a boundary, the neighbouring period also counts
+  dont_know: [pata nahi, pata nahin, nahi pata, malum nahi, maloom nahi, yaad nahi,
+              dont know, do not know, not sure, no idea, पता नहीं, मालूम नहीं, याद नहीं]
+
+# Yes/no parsing for consent and the "is anyone helping you?" question.
+yes_words: [haan, han, haanji, hanji, ji, yes, yeah, bilkul, theek, thik, ok, okay, zaroor, हाँ, हां, जी, ठीक, बिल्कुल]
+no_words: [nahi, nahin, nai, no, nope, mat, koi nahi, akela, akele, अकेले, अकेला, नहीं, ना]
+
+# Experimental speech markers (shown in a collapsed section; NEVER used for the outcome).
+speech_markers:
+  fillers: [um, uh, umm, hmm, matlab, woh, wo, accha, acha, kya, एम, हम्म, मतलब]
