@@ -71,7 +71,7 @@ class CallArtifact(SQLModel, table=True):
 
 class Score(SQLModel, table=True):
     id: int | None = Field(default=None, primary_key=True)
-    session_id: str = Field(foreign_key="session.id", index=True)
+    session_id: str = Field(foreign_key="session.id", index=True, unique=True)
     created_at: datetime = Field(default_factory=utcnow)
     scorer_version: str
     hearing: dict[str, Any] = Field(default_factory=dict, sa_column=Column(JSON))

@@ -12,9 +12,14 @@ router = APIRouter(prefix="/api/sessions", tags=["sessions"])
 
 
 def client_ip(request: Request) -> str:
+    """The client address as seen by our hosting proxy.
+
+    Proxies (Render, Railway, Fly) APPEND the real peer address to X-Forwarded-For, so the
+    rightmost entry is trustworthy; anything to its left was sent by the client and can be forged.
+    """
     forwarded = request.headers.get("x-forwarded-for")
     if forwarded:
-        return forwarded.split(",")[0].strip()
+        return forwarded.split(",")[-1].strip()
     return request.client.host if request.client else "unknown"
 
 
@@ -53,5 +58,8 @@ def get_session(session_id: str, db: DBSession = Depends(get_db)) -> SessionOut:
 
 @router.delete("/{session_id}", status_code=204)
 def delete_session(session_id: str, db: DBSession = Depends(get_db)) -> Response:
-    orchestrator.delete_session_data(db, _get_live(db, session_id))
+    session = _get_live(db, session_id)
+    if session.is_demo:
+        raise HTTPException(403, "Sample reports are shared and cannot be deleted.")
+    orchestrator.delete_session_data(db, session)
     return Response(status_code=204)

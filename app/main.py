@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import asyncio
+import logging
+import re
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager, suppress
 from pathlib import Path
@@ -19,11 +21,23 @@ from app.services.poller import run_poller
 from app.settings import get_settings
 
 WEB_DIR = Path(__file__).resolve().parent / "web"
+_TOKEN_IN_URL = re.compile(r"(token=)[^&\s\"]+")
+
+
+class _RedactTokenFilter(logging.Filter):
+    """uvicorn's access log prints full URLs; hide the webhook token in them."""
+
+    def filter(self, record: logging.LogRecord) -> bool:
+        if isinstance(record.args, tuple):
+            record.args = tuple(_TOKEN_IN_URL.sub(r"\1***", a) if isinstance(a, str) else a for a in record.args)
+        record.msg = _TOKEN_IN_URL.sub(r"\1***", str(record.msg))
+        return True
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     settings = get_settings()
+    logging.getLogger("uvicorn.access").addFilter(_RedactTokenFilter())
     if not settings.demo_mode:
         settings.require_live()  # fail fast with a clear message
     init_db()

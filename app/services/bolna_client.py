@@ -112,7 +112,10 @@ class BolnaClient:
     async def aclose(self) -> None:
         await self._http.aclose()
 
-    async def _request(self, method: str, path: str, **kwargs: Any) -> Any:
+    async def _request(self, method: str, path: str, *, idempotent: bool = True, **kwargs: Any) -> Any:
+        """Non-idempotent requests (placing a call, creating an agent) are retried only when the
+        request provably never reached Bolna (connection refused / connect timeout), so a slow
+        response can never dial the same person twice."""
         last_exc: BolnaError | None = None
         for attempt in range(self.retries + 1):
             if attempt:
@@ -122,12 +125,16 @@ class BolnaClient:
             except httpx.TransportError as exc:  # includes timeouts
                 last_exc = BolnaNetworkError(f"Bolna {method} {path}: {type(exc).__name__}")
                 log("bolna_network_error", method=method, path=path, attempt=attempt)
-                continue
+                if idempotent or isinstance(exc, httpx.ConnectError | httpx.ConnectTimeout):
+                    continue
+                raise last_exc from exc
             log("bolna_response", method=method, path=path, status=resp.status_code, attempt=attempt)
             if resp.status_code >= 500:
                 msg, body = _error_message(resp)
                 last_exc = BolnaServerError(msg, resp.status_code, body)
-                continue
+                if idempotent:
+                    continue
+                raise last_exc
             if resp.status_code >= 400:
                 msg, body = _error_message(resp)
                 if resp.status_code in (401, 403):
@@ -150,7 +157,7 @@ class BolnaClient:
     # ------------------------------------------------------------------ agents
 
     async def create_agent(self, payload: dict[str, Any]) -> str:
-        data = await self._request("POST", "/v2/agent", json=payload)
+        data = await self._request("POST", "/v2/agent", json=payload, idempotent=False)
         agent_id = data.get("agent_id") or data.get("id")
         if not agent_id:
             raise BolnaServerError("Bolna create agent: no agent_id in response", body=data)
@@ -179,7 +186,7 @@ class BolnaClient:
             payload["from_phone_number"] = from_phone_number
         if user_data:
             payload["user_data"] = user_data
-        data = await self._request("POST", "/call", json=payload)
+        data = await self._request("POST", "/call", json=payload, idempotent=False)
         execution_id = data.get("execution_id")
         if not execution_id:
             raise BolnaServerError("Bolna make call: no execution_id in response", body=data)
@@ -195,7 +202,7 @@ class BolnaClient:
         payload: dict[str, Any] = {"agent_id": agent_id}
         if user_data:
             payload["user_data"] = user_data
-        return await self._request("POST", "/web-call/session", json=payload)
+        return await self._request("POST", "/web-call/session", json=payload, idempotent=False)
 
     # ------------------------------------------------------------------ account
 

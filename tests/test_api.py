@@ -28,6 +28,7 @@ def _make_app(tmp_path, monkeypatch, **env):
         "DEMO_MODE": "1",
         "ADMIN_REVIEW_TOKEN": TOKEN,
         "BOLNA_WEBHOOK_TOKEN": "hook-secret",
+        "SECRET_SALT": "test-salt",
         "BOLNA_API_KEY": "",
         "BOLNA_AGENT_ID": "",
         "BOLNA_FROM_NUMBER": "",
@@ -299,8 +300,9 @@ def test_live_requires_valid_phone(live_client) -> None:
 
 def test_rate_limit_per_ip(live_client) -> None:
     live_client.bolna.post("/call").respond(200, json={"execution_id": "ex-1"})
-    codes = [live_client.post("/api/sessions", json={"consent": True, "mode": "phone", "phone": PHONE}).status_code
-             for _ in range(4)]
+    codes = [live_client.post("/api/sessions", json={"consent": True, "mode": "phone",
+                                                     "phone": f"+9198765432{i:02d}"}).status_code
+             for i in range(4)]
     assert codes == [201, 201, 201, 429]
 
 

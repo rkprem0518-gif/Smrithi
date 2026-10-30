@@ -22,7 +22,11 @@ def build_agent_payload(
     agent_config = copy.deepcopy(template["agent_config"])
     task = agent_config["tasks"][0]
     task["task_config"]["call_terminate"] = int(settings.max_call_minutes) * 60
-    agent_config["webhook_url"] = settings.webhook_url if settings.webhook_reachable else None
+    if settings.webhook_reachable:
+        agent_config["webhook_url"] = settings.webhook_url
+    else:
+        # The docs type webhook_url as a string; omit it rather than sending null (poller is used).
+        agent_config.pop("webhook_url", None)
     if with_keywords and cfg is not None:
         # TODO(bolna): the docs list `transcriber.keywords` but not its format for Sarvam.
         # Off by default; enable with --with-keywords once the format is confirmed.

@@ -4,17 +4,19 @@ from __future__ import annotations
 
 import asyncio
 import hashlib
+import hmac
 import re
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
+from sqlalchemy import update
 from sqlmodel import Session as DBSession
 from sqlmodel import func, select
 
 from app.config_loader import FIXTURE_NAMES, load_fixture, markers, scoring_config
 from app.db import new_db
 from app.logs import log
-from app.models import CallArtifact, ReviewStatus, Score, Session, Status, utcnow
+from app.models import CallArtifact, Review, ReviewStatus, Score, Session, Status, utcnow
 from app.scoring.engine import score_session
 from app.scoring.outcome import INVALID, needs_review
 from app.scoring.types import ScoringContext, Turn
@@ -50,7 +52,13 @@ class SessionError(Exception):
 # ---------------------------------------------------------------- helpers
 
 def hash_value(value: str, salt: str) -> str:
-    return hashlib.sha256(f"{salt}:{value}".encode()).hexdigest()
+    """Keyed hash (HMAC-SHA256). Without SECRET_SALT a phone hash cannot be brute-forced back."""
+    return hmac.new(salt.encode(), value.encode(), hashlib.sha256).hexdigest()
+
+
+# Order of in-flight statuses: updates never move a session backwards.
+_RANK = {Status.CREATED: 0, Status.CALLING: 1, Status.IN_PROGRESS: 2, Status.CALL_ENDED: 3}
+_CLAIMABLE = (Status.CREATED, Status.CALLING, Status.IN_PROGRESS, Status.CALL_ENDED)
 
 
 def next_word_form(db: DBSession) -> str:
@@ -85,15 +93,25 @@ def _touch(db: DBSession, session: Session, status: str | None = None, **fields:
     db.refresh(session)
 
 
-def check_rate_limit(db: DBSession, ip_hash: str, settings: Settings) -> None:
-    limit = DEMO_DAILY_LIMIT if settings.demo_mode else settings.max_calls_per_ip_per_day
+def _count_since(db: DBSession, *where: Any) -> int:
     since = utcnow() - timedelta(days=1)
-    used = db.exec(
+    return db.exec(
         select(func.count()).select_from(Session)
-        .where(Session.ip_hash == ip_hash, Session.created_at >= since, Session.is_demo == False)  # noqa: E712
+        .where(Session.created_at >= since, Session.is_demo == False, *where)  # noqa: E712
     ).one()
-    if used >= limit:
-        raise SessionError(f"Daily limit reached ({limit} calls per day). Please try again tomorrow.", 429)
+
+
+def check_rate_limit(db: DBSession, ip_hash: str, phone_hash: str | None, settings: Settings) -> None:
+    """Per-IP, per-number and (live) global daily caps, so nobody can run up the Bolna bill."""
+    ip_limit = DEMO_DAILY_LIMIT if settings.demo_mode else settings.max_calls_per_ip_per_day
+    if _count_since(db, Session.ip_hash == ip_hash) >= ip_limit:
+        raise SessionError(f"Daily limit reached ({ip_limit} calls per day). Please try again tomorrow.", 429)
+    if settings.demo_mode:
+        return
+    if phone_hash and _count_since(db, Session.phone_hash == phone_hash) >= settings.max_calls_per_number_per_day:
+        raise SessionError("This number has already been called today. Please try again tomorrow.", 429)
+    if _count_since(db) >= settings.max_calls_per_day:
+        raise SessionError("The demo has reached today's call limit. Please try again tomorrow.", 429)
 
 
 # ---------------------------------------------------------------- create
@@ -109,6 +127,7 @@ async def create_session(
     client_ip: str,
     settings: Settings,
     demo_fixture: str | None = None,
+    enforce_rate_limit: bool = True,
 ) -> tuple[Session, dict[str, Any] | None]:
     """Returns (session, web_call_session or None)."""
     if not consent:
@@ -118,12 +137,17 @@ async def create_session(
     if phone and not E164.match(phone):
         raise SessionError("Enter the phone number in international format, e.g. +919876543210.", 422)
     ip_hash = hash_value(client_ip, settings.secret_salt)
-    check_rate_limit(db, ip_hash, settings)
+    phone_hash = hash_value(phone, settings.secret_salt) if phone else None
+    if enforce_rate_limit:
+        check_rate_limit(db, ip_hash, phone_hash, settings)
+    if settings.demo_mode:
+        # A simulated call replays a fixture: its own language and schooling answer apply.
+        schooling_years = None
 
     session = Session(
         mode=mode, language=language, schooling_years=schooling_years, consent_ui=True,
         word_form=next_word_form(db), ip_hash=ip_hash,
-        phone_hash=hash_value(phone, settings.secret_salt) if phone else None,
+        phone_hash=phone_hash,
         phone_last4=phone[-4:] if phone else None,
     )
     if schooling_years is not None:
@@ -176,8 +200,45 @@ def score_and_save(
     execution_redacted: dict[str, Any] | None = None,
     fluency_timestamps: list[tuple[str, float]] | None = None,
 ) -> Session:
+    if not claim_for_scoring(db, session):
+        return session  # another worker (webhook vs poller) already scored it, or it was deleted
+    try:
+        return _score_claimed(db, session, turns, call_time=call_time, settings=settings,
+                              recording_url=recording_url, execution_redacted=execution_redacted,
+                              fluency_timestamps=fluency_timestamps)
+    except Exception as exc:
+        db.rollback()
+        db.refresh(session)
+        _touch(db, session, Status.FAILED, error="Scoring failed; the call needs manual review.",
+               review_status=ReviewStatus.PENDING)
+        log("scoring_failed", session_id=session.id, error=type(exc).__name__)
+        raise
+
+
+def claim_for_scoring(db: DBSession, session: Session) -> bool:
+    """Atomically move an open session to `scoring`. Exactly one caller wins."""
+    result = db.execute(
+        update(Session)
+        .where(Session.id == session.id, Session.status.in_(_CLAIMABLE), Session.deleted_at.is_(None))  # type: ignore[attr-defined,union-attr]
+        .values(status=Status.SCORING, updated_at=utcnow())
+    )
+    db.commit()
+    db.refresh(session)
+    return result.rowcount == 1
+
+
+def _score_claimed(
+    db: DBSession,
+    session: Session,
+    turns: list[Turn],
+    *,
+    call_time: datetime,
+    settings: Settings,
+    recording_url: str | None,
+    execution_redacted: dict[str, Any] | None,
+    fluency_timestamps: list[tuple[str, float]] | None,
+) -> Session:
     cfg = scoring_config()
-    _touch(db, session, Status.SCORING)
     db.add(CallArtifact(
         session_id=session.id,
         transcript_json=[{"role": t.role, "text": t.text, "t": t.t} for t in turns],
@@ -229,6 +290,8 @@ def score_and_save(
         review_status=ReviewStatus.PENDING if needs_review(result["outcome"]) else ReviewStatus.NOT_NEEDED,
     )
     log("session_scored", session_id=session.id, outcome=result["outcome"], status=status)
+    if session.deleted_at:  # "Delete this data" arrived while we were scoring
+        delete_session_data(db, session)
     return session
 
 
@@ -259,7 +322,7 @@ async def apply_execution(db: DBSession, session: Session, execution: dict[str, 
         return session
     status = str(execution.get("status") or "").lower()
     if status in _IN_FLIGHT:
-        if _IN_FLIGHT[status] != session.status:
+        if _RANK[_IN_FLIGHT[status]] > _RANK.get(session.status, 99):
             _touch(db, session, _IN_FLIGHT[status])
         return session
     if execution.get("answered_by_voice_mail"):
@@ -273,7 +336,6 @@ async def apply_execution(db: DBSession, session: Session, execution: dict[str, 
         log("unknown_execution_status", session_id=session.id, bolna_status=status)
         return session
 
-    _touch(db, session, Status.CALL_ENDED)
     turns = parse_bolna_transcript(execution.get("transcript"))
     recording_url = (execution.get("telephony_data") or {}).get("recording_url")
     call_time = _parse_time(execution.get("created_at")) or session.created_at.replace(tzinfo=UTC)
@@ -306,6 +368,8 @@ def delete_session_data(db: DBSession, session: Session) -> None:
         db.delete(artifact)
     for score in db.exec(select(Score).where(Score.session_id == session.id)).all():
         db.delete(score)
+    for review in db.exec(select(Review).where(Review.session_id == session.id)).all():
+        db.delete(review)
     session.phone_hash = None
     session.phone_last4 = None
     session.ip_hash = None
@@ -361,7 +425,6 @@ async def simulate_demo_call(session_id: str, fixture: str, settings: Settings) 
         session = db.get(Session, session_id)
         if not session or session.deleted_at:
             return
-        session.status = Status.CALL_ENDED
         # Fixture answers (day, month, time) refer to the fixture's own call time.
         score_and_save(db, session, turns_from_json(fx["transcript"]),
                        call_time=datetime.fromisoformat(fx["call_started_at"]), settings=settings)
