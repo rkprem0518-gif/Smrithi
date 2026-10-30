@@ -35,7 +35,10 @@ async def check(settings: Settings) -> tuple[bool, list[str]]:
             return False, ["BOLNA_API_KEY was rejected (401). Check the key in .env."]
         except BolnaError as exc:
             return False, [f"Could not reach Bolna: {exc}"]
-        wallet = me.get("wallet")
+        try:
+            wallet = float(me.get("wallet"))  # may arrive as a string ("0.00")
+        except (TypeError, ValueError):
+            wallet = me.get("wallet")
         conc = me.get("concurrency") or {}
         lines.append(f"OK  account: {me.get('name') or me.get('email') or me.get('id')}")
         lines.append(f"    wallet balance: {wallet}")

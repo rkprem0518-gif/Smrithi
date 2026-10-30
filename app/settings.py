@@ -40,6 +40,8 @@ class Settings(BaseSettings):
     max_calls_per_ip_per_day: int = 3
     max_call_minutes: int = 8
     helpline_text: str = ""
+    max_calls_per_number_per_day: int = 2  # same phone number, any IP
+    max_calls_per_day: int = 60  # whole deployment, live mode only
 
     # Internal knobs (not in .env.example; handy for tests)
     poll_interval_seconds: float = 10.0
@@ -80,6 +82,11 @@ class Settings(BaseSettings):
             missing.append("BOLNA_AGENT_ID")
         return missing
 
+    def default_secrets(self) -> list[str]:
+        defaults = {"SECRET_SALT": self.secret_salt, "ADMIN_REVIEW_TOKEN": self.admin_review_token,
+                    "BOLNA_WEBHOOK_TOKEN": self.bolna_webhook_token}
+        return [k for k, v in defaults.items() if v in ("", "change-me")]
+
     def require_live(self) -> None:
         missing = self.missing_live_keys()
         if missing:
@@ -88,6 +95,14 @@ class Settings(BaseSettings):
                 + ", ".join(missing)
                 + ". Run scripts/create_agent.py to get BOLNA_AGENT_ID, "
                 "or set DEMO_MODE=1 to run offline."
+            )
+        weak = self.default_secrets()
+        if weak:
+            # Real transcripts and phone hashes are at stake: never run live on the example secrets.
+            raise LiveConfigError(
+                "DEMO_MODE=0 (live mode) but these still have the example value 'change-me': "
+                + ", ".join(weak)
+                + '. Set each to a long random string: python -c "import secrets; print(secrets.token_urlsafe(24))"'
             )
 
 

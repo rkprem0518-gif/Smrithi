@@ -140,7 +140,7 @@ def test_agent_payload_shape() -> None:
     assert set(payload) == {"agent_config", "agent_prompts"}
     assert "smriti_markers" not in json.dumps(payload)
     assert cfg["tasks"][0]["task_config"]["call_terminate"] == 480
-    assert cfg["webhook_url"] is None  # localhost is not reachable by Bolna
+    assert "webhook_url" not in cfg  # localhost is not reachable by Bolna; the poller is used
     assert "{{word_list}}" in payload["agent_prompts"]["task_1"]["system_prompt"]
     tools = cfg["tasks"][0]["tools_config"]
     assert set(tools) >= {"llm_agent", "synthesizer", "transcriber", "input", "output"}

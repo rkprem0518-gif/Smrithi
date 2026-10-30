@@ -21,7 +21,7 @@ from sqlmodel import select
 from app.db import init_db, new_db
 from app.models import Score, Session, Status
 from app.services import orchestrator
-from app.services.bolna_client import BolnaClient
+from app.services.bolna_client import BolnaClient, BolnaError
 from app.settings import LiveConfigError, get_settings
 
 
@@ -48,7 +48,7 @@ async def main() -> int:
         try:
             session, _ = await orchestrator.create_session(
                 db, consent=True, language=args.language, mode="phone", schooling_years=args.schooling,
-                phone=args.phone, client_ip="cli", settings=settings,
+                phone=args.phone, client_ip="cli", settings=settings, enforce_rate_limit=False,
             )
         except orchestrator.SessionError as exc:
             print(f"Could not start: {exc}", file=sys.stderr)
@@ -68,8 +68,11 @@ async def main() -> int:
                     last = session.status
                 if session.status in Status.FINAL:
                     break
-                execution = await client.get_execution(session.execution_id or "")
-                await orchestrator.apply_execution(db, session, execution, settings)
+                try:
+                    execution = await client.get_execution(session.execution_id or "")
+                    await orchestrator.apply_execution(db, session, execution, settings)
+                except BolnaError as exc:  # keep waiting: the call is still running on Bolna's side
+                    print(f"  (could not fetch the execution yet: {exc})")
             await asyncio.sleep(settings.poll_interval_seconds)
 
     with new_db() as db:
