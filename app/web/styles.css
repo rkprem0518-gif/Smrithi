@@ -5,6 +5,7 @@
   --text: #1f1d1a;
   --muted: #5f5a52;
   --border: #e3dcd0;
+  --input-border: #8c8273;
   --accent: #8a4b14;
   --accent-ink: #ffffff;
   --focus: #1d5fbf;
@@ -32,6 +33,7 @@
     --text: #f1ece4;
     --muted: #b5ada1;
     --border: #3a352f;
+    --input-border: #8f877b;
     --accent: #e0a066;
     --accent-ink: #1b1308;
     --focus: #7fb0ff;
@@ -131,7 +133,7 @@ form .field { margin-bottom: 18px; }
 label { font-weight: 600; display: block; margin-bottom: 6px; }
 input[type="text"], input[type="tel"], input[type="number"], input[type="password"], select, textarea {
   width: 100%; min-height: 48px; padding: 10px 12px; font: inherit;
-  border: 1.5px solid var(--border); border-radius: 10px; background: var(--surface); color: var(--text);
+  border: 1.5px solid var(--input-border); border-radius: 10px; background: var(--surface); color: var(--text);
 }
 textarea { min-height: 90px; }
 .check { display: flex; gap: 12px; align-items: flex-start; font-weight: 400; }
@@ -189,7 +191,7 @@ summary { cursor: pointer; font-weight: 600; min-height: 32px; }
 .transcript p { margin: 0 0 6px; }
 .transcript .agent b { color: var(--accent); }
 
-.lang-toggle { min-height: 36px; }
+.lang-toggle { min-height: 44px; }
 footer { border-top: 1px solid var(--border); padding: 20px 0 40px; font-size: 0.85rem; color: var(--muted); }
 
 @media (max-width: 560px) {

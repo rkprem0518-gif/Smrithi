@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from typing import Any
 
+from app.config_loader import animal_hindi_names
 from app.scoring.outcome import INVALID, NORMAL, REFER, UNCERTAIN
 from app.scoring.types import ScoringConfig
 
@@ -109,6 +110,7 @@ def build_report(result: dict[str, Any], cfg: ScoringConfig, *, word_form: str, 
         "hearing": {"correct": result["hearing"]["correct"], "max": result["hearing"]["max"],
                     "items": result["hearing"]["items"]},
         "word_list": [{"id": w.id, "hi": w.hi, "en": w.en} for w in cfg.forms[word_form]],
+        "animal_names": {w: animal_hindi_names().get(w, w) for w in fluency["words"]},
         "word_form": word_form,
         "language": language,
         "call_time": call_time,

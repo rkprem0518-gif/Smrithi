@@ -122,7 +122,7 @@ Scoring is **deterministic and explainable**: Devanagari → Latin transliterati
 5. Set `DEMO_MODE=0`. Call your own phone end to end: `python scripts/test_call.py +91XXXXXXXXXX`
 6. For webhooks, `PUBLIC_BASE_URL` must be a public https URL (deploy, or `cloudflared tunnel --url http://localhost:8000`), then `python scripts/create_agent.py --update`. Without it the poller fetches results every 10 s.
 
-In live mode the app refuses to start without `BOLNA_API_KEY` and `BOLNA_AGENT_ID`, with a message saying what to set.
+In live mode the app refuses to start without `BOLNA_API_KEY` and `BOLNA_AGENT_ID`, or with the example `change-me` secrets, with a message saying what to set. Generate secrets with `python -c "import secrets; print(secrets.token_urlsafe(24))"`.
 
 ### NEXT (needs credits)
 
@@ -145,6 +145,8 @@ Everything below is implemented and tested against mocks; it is only waiting on 
 | Is `telephony_data.recording_url` fetchable by a third party (Deepgram) without auth? | `asr_fallback.py` | fluency counted over the whole segment |
 | Do English calls sound right with the Sarvam `hi` STT + Bulbul voice, or do we need a second agent? | `config/agent.json` | Hinglish is the main path |
 | Webhook retries / signing (not documented) | `api/webhook.py` | token in the URL + always re-fetch + poller |
+| `gpt-4.1-mini` is listed as previous-generation on Bolna's OpenAI page | `config/agent.json` | switch to `gpt-5.4-mini` (requires `temperature: 1`) if creation fails |
+| Is 8 minutes (`MAX_CALL_MINUTES`) enough for slower speakers? | `.env` | raise to 10 after the first real calls |
 
 ## Repository layout
 
@@ -171,7 +173,8 @@ docs/                architecture, scoring spec, ethics, pilot log, deck notes
 - Phone numbers are used only to place the call; we store a salted hash and the last 4 digits. Logs carry `session_id`/`execution_id` only; numbers are redacted.
 - Data lives only in the app's SQLite file. `DELETE /api/sessions/{id}` (the "Delete this data" button) wipes the transcript, recording link and scores.
 - The agent never says "dementia", never diagnoses, never hints or corrects. If the person sounds distressed it stops, reassures, and the session is marked `stopped`. A helpline is shown only if `HELPLINE_TEXT` is set to a verified number.
-- Hosted demo: per-IP daily call limit (`MAX_CALLS_PER_IP_PER_DAY`), max call length (`MAX_CALL_MINUTES`), reviewer pages behind `ADMIN_REVIEW_TOKEN` (the app refuses the default token when `APP_ENV=production`).
+- Hosted demo: daily call limits per IP (`MAX_CALLS_PER_IP_PER_DAY`), per phone number and per deployment, max call length (`MAX_CALL_MINUTES`), reviewer pages behind `ADMIN_REVIEW_TOKEN`. In live mode the app **refuses to start** while `SECRET_SALT`, `ADMIN_REVIEW_TOKEN` or `BOLNA_WEBHOOK_TOKEN` still say `change-me`.
+- A webhook and the poller can both report the same call; an atomic claim makes sure it is scored exactly once. `POST /call` is never retried after a timeout, so nobody is dialled twice.
 - SQLite on free hosting tiers may reset on redeploy (fine for a demo); attach a volume and point `DATABASE_URL` at it for persistence.
 
 ## Limitations

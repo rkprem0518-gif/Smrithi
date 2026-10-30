@@ -4,7 +4,6 @@
   "nav_start": "Start a check",
   "footer": "Smriti is a pilot built for the Bolna Voice AI Buildathon. It is not a validated test and never diagnoses. Inspired by the 10/66 Dementia Research Group battery.",
   "demo_banner": "Demo mode: no real calls are placed. Calls are simulated with sample conversations and scored by the real engine.",
-
   "home_title": "A 5-minute phone memory check, in Hindi or English",
   "home_lead": "Smriti calls an older family member and runs a short, friendly memory check by voice. You get a clear summary and a suggested next step.",
   "not_diagnosis": "This is a memory check, not a medical test. It never diagnoses. Uncertain results are always looked at by a person.",
@@ -21,7 +20,6 @@
   "demo_invalid": "Invalid - hearing check failed",
   "fair_title": "Built to be fair",
   "fair_body": "No reading or writing needed. Schooling is taken into account. Familiar words, traditional month names accepted. Built on the approach of the 10/66 Dementia Research Group, designed for people with little or no schooling.",
-
   "start_title": "Start a memory check",
   "consent_label": "I have the person's permission. I understand this is a pilot memory check, not a medical test or diagnosis, that the call will be recorded, and that a trained person may review the result.",
   "language_label": "Language of the call",
@@ -40,7 +38,6 @@
   "consent_required": "Please tick the consent box first.",
   "webcall_live": "Web call in progress. Speak clearly; the check takes about 5 minutes.",
   "webcall_hangup": "End call",
-
   "live_title": "Memory check in progress",
   "live_lead": "This page updates by itself. You can keep it open.",
   "st_calling": "Calling",
@@ -54,7 +51,6 @@
   "end_failed": "The call could not be completed.",
   "view_report": "View report",
   "try_again": "Try again",
-
   "report_title": "Memory check report",
   "pilot": "Pilot - not a validated test - not a diagnosis",
   "rule": "Rule",
@@ -108,7 +104,6 @@
   "not_ready": "This report is not ready yet.",
   "yes": "yes",
   "no": "no",
-
   "review_title": "Reviewer queue",
   "review_lead": "Uncertain, Refer and Invalid results wait here for a trained person.",
   "token_label": "Reviewer token",
@@ -127,5 +122,9 @@
   "save": "Save decision",
   "saved": "Saved.",
   "bad_token": "Wrong or missing reviewer token.",
-  "demo_label": "sample"
+  "demo_label": "sample",
+  "live_ended_title": "Memory check ended",
+  "invalid_caveat": "Because the call is invalid, the scores below are shown only for transparency. Do not read them as a result.",
+  "load_error": "Could not load the report. Please try again in a moment.",
+  "speaker_user": "Person"
 }

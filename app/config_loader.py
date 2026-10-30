@@ -35,6 +35,15 @@ def agent_template() -> dict[str, Any]:
         return json.load(fh)
 
 
+@lru_cache
+def animal_hindi_names() -> dict[str, str]:
+    groups = _yaml("animals.yaml")["animals"]
+    return {
+        name: next((v for v in variants if any("\u0900" <= ch <= "\u097f" for ch in str(v))), name)
+        for name, variants in groups.items()
+    }
+
+
 def markers() -> dict[str, list[str]]:
     return agent_template()["smriti_markers"]
 
