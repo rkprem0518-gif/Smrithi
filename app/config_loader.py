@@ -36,12 +36,21 @@ def agent_template() -> dict[str, Any]:
 
 
 @lru_cache
-def animal_hindi_names() -> dict[str, str]:
+def animal_display_names(lo: str = "\u0900", hi: str = "\u097f") -> dict[str, str]:
+    """First spelling of each animal in a script (default Devanagari; Kannada is U+0C80-U+0CFF)."""
     groups = _yaml("animals.yaml")["animals"]
     return {
-        name: next((v for v in variants if any("\u0900" <= ch <= "\u097f" for ch in str(v))), name)
+        name: next((v for v in variants if any(lo <= ch <= hi for ch in str(v))), name)
         for name, variants in groups.items()
     }
+
+
+def animal_hindi_names() -> dict[str, str]:
+    return animal_display_names()
+
+
+def animal_kannada_names() -> dict[str, str]:
+    return animal_display_names("\u0c80", "\u0cff")
 
 
 def markers() -> dict[str, list[str]]:

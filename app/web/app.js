@@ -162,19 +162,23 @@ function pageLive() {
 const DAYS = {
   en: ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"],
   hi: ["सोमवार", "मंगलवार", "बुधवार", "गुरुवार", "शुक्रवार", "शनिवार", "रविवार"],
+  kn: ["ಸೋಮವಾರ", "ಮಂಗಳವಾರ", "ಬುಧವಾರ", "ಗುರುವಾರ", "ಶುಕ್ರವಾರ", "ಶನಿವಾರ", "ಭಾನುವಾರ"],
 };
 const MONTHS = {
   en: ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"],
   hi: ["जनवरी", "फ़रवरी", "मार्च", "अप्रैल", "मई", "जून", "जुलाई", "अगस्त", "सितंबर", "अक्टूबर", "नवंबर", "दिसंबर"],
+  kn: ["ಜನವರಿ", "ಫೆಬ್ರವರಿ", "ಮಾರ್ಚ್", "ಏಪ್ರಿಲ್", "ಮೇ", "ಜೂನ್", "ಜುಲೈ", "ಆಗಸ್ಟ್", "ಸೆಪ್ಟೆಂಬರ್", "ಅಕ್ಟೋಬರ್", "ನವೆಂಬರ್", "ಡಿಸೆಂಬರ್"],
 };
 const NAMED = {
   hi: { winter: "सर्दी", summer: "गर्मी", monsoon: "बरसात", spring: "बसंत", autumn: "शरद",
         morning: "सुबह", afternoon: "दोपहर", evening: "शाम", night: "रात" },
+  kn: { winter: "ಚಳಿಗಾಲ", summer: "ಬೇಸಿಗೆ", monsoon: "ಮಳೆಗಾಲ", spring: "ವಸಂತ", autumn: "ಶರತ್ಕಾಲ",
+        morning: "ಬೆಳಿಗ್ಗೆ", afternoon: "ಮಧ್ಯಾಹ್ನ", evening: "ಸಂಜೆ", night: "ರಾತ್ರಿ" },
 };
 
 let REPORT_LANG = "hi";
 function wordLabel(w) {
-  if (REPORT_LANG === "kn" && w.kn) return `${w.kn} (${w.en})`;
+  if ((REPORT_LANG === "kn" || LANG === "kn") && w.kn) return `${w.kn} (${w.en})`;
   return LANG === "hi" ? `${w.hi} (${w.id})` : `${w.id} (${w.en})`;
 }
 
@@ -224,7 +228,8 @@ function renderReport(root, s) {
   const animals = el("section", { class: "card" },
     el("h2", { text: t("animal_naming") }), el("div", { class: "score", text: String(d.animal_naming.count) }),
     el("div", { class: "small muted", text: t("animals_counted") }),
-    extraChips(d.animal_naming.words.map((w) => (LANG === "hi" && r.animal_names && r.animal_names[w]) || w), "hit"),
+    extraChips(d.animal_naming.words.map((w) => (LANG !== "en" && ((r.animal_names_by_lang || {})[LANG] || {})[w])
+      || (LANG === "hi" && r.animal_names && r.animal_names[w]) || w), "hit"),
     d.animal_naming.non_animals.length ? el("div", { class: "small muted" }, `${t("not_animals")}: `, d.animal_naming.non_animals.join(", ")) : null,
     el("p", { class: "small muted", text: d.animal_naming.experimental_timing ? t("timing_experimental") : t("timing_asr") }));
 
@@ -395,7 +400,8 @@ document.addEventListener("DOMContentLoaded", async () => {
   const toggle = document.getElementById("lang-toggle");
   if (toggle) {
     toggle.addEventListener("click", async () => {
-      const next = LANG === "en" ? "hi" : "en";
+      const order = ["en", "hi", "kn"];  // the button shows the next language
+      const next = order[(order.indexOf(LANG) + 1) % order.length];
       safeSet("smriti_lang", next);
       await loadLang(next);
       rerender();

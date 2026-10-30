@@ -4,15 +4,15 @@ from __future__ import annotations
 
 from typing import Any
 
-from app.config_loader import animal_hindi_names
+from app.config_loader import animal_hindi_names, animal_kannada_names
 from app.scoring.outcome import INVALID, NORMAL, REFER, UNCERTAIN
 from app.scoring.types import ScoringConfig
 
 OUTCOME_LABEL = {
-    NORMAL: {"en": "Normal", "hi": "सामान्य"},
-    UNCERTAIN: {"en": "Uncertain - retest", "hi": "अस्पष्ट - दोबारा जाँच करें"},
-    REFER: {"en": "Refer to clinician", "hi": "डॉक्टर से मिलें"},
-    INVALID: {"en": "Invalid call", "hi": "अमान्य कॉल"},
+    NORMAL: {"en": "Normal", "hi": "सामान्य", "kn": "ಸಾಮಾನ್ಯ"},
+    UNCERTAIN: {"en": "Uncertain - retest", "hi": "अस्पष्ट - दोबारा जाँच करें", "kn": "ಅಸ್ಪಷ್ಟ - ಮತ್ತೆ ಪರೀಕ್ಷಿಸಿ"},
+    REFER: {"en": "Refer to clinician", "hi": "डॉक्टर से मिलें", "kn": "ವೈದ್ಯರನ್ನು ಭೇಟಿ ಮಾಡಿ"},
+    INVALID: {"en": "Invalid call", "hi": "अमान्य कॉल", "kn": "ಅಮಾನ್ಯ ಕರೆ"},
 }
 
 NEXT_STEP = {
@@ -23,12 +23,17 @@ NEXT_STEP = {
         "hi": "इस छोटी जाँच में याददाश्त से जुड़ी कोई चिंता नहीं दिखी। यह कोई निदान नहीं है। अगर आपको या "
               "परिवार को याददाश्त या रोज़ के कामों में बदलाव दिखे, तो डॉक्टर से बात करें। यह जाँच 6-12 "
               "महीने बाद दोबारा की जा सकती है।",
+        "kn": "ಈ ಸಣ್ಣ ಪರೀಕ್ಷೆಯಲ್ಲಿ ನೆನಪಿನ ಬಗ್ಗೆ ಯಾವುದೇ ಚಿಂತೆ ಕಾಣಲಿಲ್ಲ. ಇದು ರೋಗನಿರ್ಣಯ ಅಲ್ಲ. ನೆನಪಿನಲ್ಲಿ ಅಥವಾ "
+              "ದಿನನಿತ್ಯದ ಕೆಲಸಗಳಲ್ಲಿ ಬದಲಾವಣೆ ಕಂಡರೆ ವೈದ್ಯರೊಂದಿಗೆ ಮಾತಾಡಿ. ಈ ಪರೀಕ್ಷೆಯನ್ನು 6-12 ತಿಂಗಳ ನಂತರ "
+              "ಮತ್ತೆ ಮಾಡಬಹುದು.",
     },
     UNCERTAIN: {
         "en": "The result is unclear. A trained reviewer will look at this call. We suggest repeating the "
               "check in a few weeks, in a quiet place. If you are worried, talk to a doctor.",
         "hi": "नतीजा साफ़ नहीं है। एक प्रशिक्षित व्यक्ति इस कॉल को देखेगा। कुछ हफ़्तों बाद, शांत जगह पर "
               "जाँच दोबारा करें। अगर चिंता हो, तो डॉक्टर से बात करें।",
+        "kn": "ಫಲಿತಾಂಶ ಸ್ಪಷ್ಟವಾಗಿಲ್ಲ. ತರಬೇತಿ ಪಡೆದ ವ್ಯಕ್ತಿ ಈ ಕರೆಯನ್ನು ಪರಿಶೀಲಿಸುತ್ತಾರೆ. ಕೆಲವು ವಾರಗಳ ನಂತರ, "
+              "ಶಾಂತ ಸ್ಥಳದಲ್ಲಿ ಪರೀಕ್ಷೆಯನ್ನು ಮತ್ತೆ ಮಾಡಿ. ಚಿಂತೆ ಇದ್ದರೆ ವೈದ್ಯರೊಂದಿಗೆ ಮಾತಾಡಿ.",
     },
     REFER: {
         "en": "Some answers suggest it is worth seeing a doctor (a general physician, neurologist or memory "
@@ -39,6 +44,10 @@ NEXT_STEP = {
               "ठीक से जाँच करवाना अच्छा रहेगा। यह कोई निदान नहीं है: सुनने की दिक्कत, मन की स्थिति, नींद, "
               "दवाइयाँ और विटामिन भी याददाश्त पर असर डालते हैं, और कई कारणों का इलाज हो सकता है। एक "
               "प्रशिक्षित व्यक्ति भी इस कॉल को देखेगा।",
+        "kn": "ಕೆಲವು ಉತ್ತರಗಳನ್ನು ನೋಡಿದರೆ, ಸರಿಯಾದ ಪರೀಕ್ಷೆಗಾಗಿ ವೈದ್ಯರನ್ನು (ಸಾಮಾನ್ಯ ವೈದ್ಯರು, ನರರೋಗ ತಜ್ಞರು "
+              "ಅಥವಾ ಮೆಮೊರಿ ಕ್ಲಿನಿಕ್) ಭೇಟಿ ಮಾಡುವುದು ಒಳ್ಳೆಯದು. ಇದು ರೋಗನಿರ್ಣಯ ಅಲ್ಲ: ಕೇಳುವ ತೊಂದರೆ, ಮನಸ್ಥಿತಿ, "
+              "ನಿದ್ರೆ, ಔಷಧಿಗಳು ಮತ್ತು ವಿಟಮಿನ್ ಮಟ್ಟಗಳೂ ನೆನಪಿನ ಮೇಲೆ ಪರಿಣಾಮ ಬೀರುತ್ತವೆ, ಮತ್ತು ಹಲವು ಕಾರಣಗಳಿಗೆ "
+              "ಚಿಕಿತ್ಸೆ ಇದೆ. ತರಬೇತಿ ಪಡೆದ ವ್ಯಕ್ತಿಯೂ ಈ ಕರೆಯನ್ನು ಪರಿಶೀಲಿಸುತ್ತಾರೆ.",
     },
     INVALID: {
         "en": "We could not get a reliable result from this call. Please try again on a clearer line, in a "
@@ -47,6 +56,9 @@ NEXT_STEP = {
         "hi": "इस कॉल से भरोसेमंद नतीजा नहीं मिल सका। कृपया साफ़ लाइन पर, शांत जगह में, और बिना किसी की "
               "मदद के दोबारा कोशिश करें। अगर सुनने में दिक्कत थी, तो फ़ोन के बजाय आमने-सामने जाँच (सुनने "
               "की जाँच समेत) बेहतर है।",
+        "kn": "ಈ ಕರೆಯಿಂದ ನಂಬಲರ್ಹ ಫಲಿತಾಂಶ ಸಿಗಲಿಲ್ಲ. ದಯವಿಟ್ಟು ಸ್ಪಷ್ಟ ಲೈನ್‌ನಲ್ಲಿ, ಶಾಂತ ಸ್ಥಳದಲ್ಲಿ, ಯಾರ ಸಹಾಯವೂ "
+              "ಇಲ್ಲದೆ ಮತ್ತೆ ಪ್ರಯತ್ನಿಸಿ. ಕೇಳುವುದರಲ್ಲಿ ತೊಂದರೆ ಇದ್ದರೆ, ಫೋನ್ ಬದಲು ನೇರ ಪರೀಕ್ಷೆ (ಕೇಳುವ ಪರೀಕ್ಷೆ "
+              "ಸೇರಿ) ಉತ್ತಮ.",
     },
 }
 
@@ -54,22 +66,27 @@ INVALID_REASONS = {
     "hearing_check_failed": {
         "en": "the hearing/line check failed (fewer than 2 of 3 number strings repeated)",
         "hi": "सुनने/लाइन की जाँच सफल नहीं हुई (3 में से 2 से कम अंक दोहराए गए)",
+        "kn": "ಕೇಳುವ/ಲೈನ್ ಪರೀಕ್ಷೆ ವಿಫಲವಾಯಿತು (3 ರಲ್ಲಿ 2 ಕ್ಕಿಂತ ಕಡಿಮೆ ಅಂಕಿಗಳನ್ನು ಮತ್ತೆ ಹೇಳಿದರು)",
     },
     "ended_before_delayed_recall": {
         "en": "the call ended before the last memory task",
         "hi": "आख़िरी याददाश्त वाले काम से पहले कॉल ख़त्म हो गई",
+        "kn": "ಕೊನೆಯ ನೆನಪಿನ ಕೆಲಸಕ್ಕೆ ಮುಂಚೆಯೇ ಕರೆ ಮುಗಿಯಿತು",
     },
     "too_many_empty_answers": {
         "en": "more than 30% of answers were empty or could not be understood",
         "hi": "30% से ज़्यादा जवाब ख़ाली थे या समझ नहीं आए",
+        "kn": "30% ಕ್ಕಿಂತ ಹೆಚ್ಚು ಉತ್ತರಗಳು ಖಾಲಿ ಇದ್ದವು ಅಥವಾ ಅರ್ಥವಾಗಲಿಲ್ಲ",
     },
     "helper_present": {
         "en": "the person said someone was helping them answer",
         "hi": "व्यक्ति ने बताया कि कोई जवाब देने में मदद कर रहा था",
+        "kn": "ಉತ್ತರಿಸಲು ಯಾರೋ ಸಹಾಯ ಮಾಡುತ್ತಿದ್ದರು ಎಂದು ವ್ಯಕ್ತಿ ಹೇಳಿದರು",
     },
     "stopped_distress": {
         "en": "the call was stopped because the person seemed upset",
         "hi": "व्यक्ति परेशान लगे, इसलिए कॉल रोक दी गई",
+        "kn": "ವ್ಯಕ್ತಿ ತೊಂದರೆಯಲ್ಲಿದ್ದಂತೆ ಅನಿಸಿದ್ದರಿಂದ ಕರೆಯನ್ನು ನಿಲ್ಲಿಸಲಾಯಿತು",
     },
 }
 
@@ -111,6 +128,10 @@ def build_report(result: dict[str, Any], cfg: ScoringConfig, *, word_form: str, 
                     "items": result["hearing"]["items"]},
         "word_list": [{"id": w.id, "hi": w.hi, "en": w.en, "kn": w.kn} for w in cfg.forms[word_form]],
         "animal_names": {w: animal_hindi_names().get(w, w) for w in fluency["words"]},
+        "animal_names_by_lang": {
+            "hi": {w: animal_hindi_names().get(w, w) for w in fluency["words"]},
+            "kn": {w: animal_kannada_names().get(w, w) for w in fluency["words"]},
+        },
         "word_form": word_form,
         "language": language,
         "call_time": call_time,
@@ -126,6 +147,7 @@ def build_report(result: dict[str, Any], cfg: ScoringConfig, *, word_form: str, 
         "pilot_notice": {
             "en": "Smriti is a pilot. It is not a validated test and it never diagnoses. Cutoffs are placeholders.",
             "hi": "स्मृति एक पायलट है। यह मान्य परीक्षण नहीं है और कभी निदान नहीं करता।",
+            "kn": "ಸ್ಮೃತಿ ಒಂದು ಪ್ರಾಯೋಗಿಕ ಯೋಜನೆ. ಇದು ಮಾನ್ಯತೆ ಪಡೆದ ಪರೀಕ್ಷೆ ಅಲ್ಲ ಮತ್ತು ಎಂದಿಗೂ ರೋಗನಿರ್ಣಯ ಮಾಡುವುದಿಲ್ಲ.",
         },
         "scorer_version": result["scorer_version"],
     }

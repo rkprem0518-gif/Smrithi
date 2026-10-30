@@ -85,3 +85,20 @@ def test_silent_recall_then_close_is_reached(cfg) -> None:
     res = score_session(seg, ScoringContext(call_time=datetime.fromisoformat("2026-10-28T10:00:00+05:30")),
                         scoring_config())
     assert "ended_before_delayed_recall" not in res.invalid_reasons
+
+
+def test_ui_languages_have_the_same_keys() -> None:
+    import json
+    from pathlib import Path
+
+    folder = Path(__file__).resolve().parent.parent / "app" / "web" / "i18n"
+    keys = {p.stem: set(json.loads(p.read_text(encoding="utf-8"))) for p in folder.glob("*.json")}
+    assert set(keys) == {"en", "hi", "kn"}
+    assert keys["en"] == keys["hi"] == keys["kn"]
+
+
+def test_report_has_kannada_text(cfg) -> None:
+    from app.services import report
+
+    for table in (report.OUTCOME_LABEL, report.NEXT_STEP, report.INVALID_REASONS):
+        assert all("kn" in v for v in table.values())
