@@ -1,0 +1,73 @@
+{
+  "_comment": "Smriti Bolna agent template. scripts/create_agent.py sends agent_config + the prompt in prompts/smriti_agent.md to POST /v2/agent (or PUT /v2/agent/{id} with --update). It overrides webhook_url and task_config.call_terminate from .env. smriti_markers is NOT sent to Bolna: the segmenter uses it to split the transcript into tasks. Provider/model names verified against bolna.ai/docs on 2026-10-30.",
+  "smriti_markers": {
+    "hearing":     ["पहला काम", "Pehla kaam", "Pahla kaam", "Task one"],
+    "schooling":   ["दूसरा काम", "Doosra kaam", "Dusra kaam", "Task two"],
+    "learning":    ["तीसरा काम", "Teesra kaam", "Tisra kaam", "Task three"],
+    "fluency":     ["चौथा काम", "Chautha kaam", "Task four"],
+    "orientation": ["पाँचवाँ काम", "पांचवां काम", "Paanchvaan kaam", "Panchva kaam", "Task five"],
+    "recall":      ["छठा काम", "Chhatha kaam", "Chhata kaam", "Task six"],
+    "close":       ["आख़िरी सवाल", "आखिरी सवाल", "Aakhri sawaal", "Akhri sawal", "Last question"],
+    "stopped":     ["हम यहीं रुकते हैं", "Hum yahin rukte hain", "Let us stop here", "Let's stop here"],
+    "declined":    ["आज जाँच नहीं करेंगे", "आज जांच नहीं करेंगे", "Aaj jaanch nahi karenge", "We will not do the check today"]
+  },
+  "agent_config": {
+    "agent_name": "Smriti memory check (pilot)",
+    "agent_welcome_message": "नमस्ते! मैं स्मृति बोल रही हूँ। Namaste, this is Smriti.",
+    "webhook_url": null,
+    "call_summary_enabled": false,
+    "tasks": [
+      {
+        "task_type": "conversation",
+        "toolchain": {
+          "execution": "sequential",
+          "pipelines": [["transcriber", "llm", "synthesizer"]]
+        },
+        "tools_config": {
+          "llm_agent": {
+            "agent_type": "simple_llm_agent",
+            "agent_flow_type": "streaming",
+            "llm_config": {
+              "provider": "openai",
+              "family": "openai",
+              "model": "gpt-4.1-mini",
+              "max_tokens": 300,
+              "temperature": 0.2
+            }
+          },
+          "synthesizer": {
+            "provider": "sarvam",
+            "provider_config": {
+              "voice": "Suhani",
+              "voice_id": "suhani",
+              "model": "bulbul:v3",
+              "language": "hi",
+              "speed": 0.85
+            },
+            "stream": true,
+            "buffer_size": 150,
+            "audio_format": "wav"
+          },
+          "transcriber": {
+            "provider": "sarvam",
+            "model": "saaras:v4",
+            "language": "hi",
+            "stream": true,
+            "endpointing": 900
+          },
+          "input": {"provider": "plivo", "format": "wav"},
+          "output": {"provider": "plivo", "format": "wav"}
+        },
+        "task_config": {
+          "hangup_after_silence": 25,
+          "call_terminate": 480,
+          "backchanneling": false,
+          "number_of_words_for_interruption": 3,
+          "check_if_user_online": true,
+          "trigger_user_online_message_after": 15,
+          "call_hangup_message": "धन्यवाद, नमस्ते।"
+        }
+      }
+    ]
+  }
+}
