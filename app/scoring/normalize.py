@@ -23,6 +23,7 @@ _NUKTA = "़"
 # Anusvara before a stop is pronounced as a nasal "n" (पंखा = pankha, not pamkha).
 _ANUSVARA_N = re.compile(r"m(?=[kgcjtd])")
 _RUNS = re.compile(r"(.)\1+")
+_CANDRA = str.maketrans({"ॉ": "ो", "ऑ": "ओ", "ॅ": "े", "ऍ": "ए"})
 
 
 def _is_consonant(ch: str) -> bool:
@@ -37,6 +38,8 @@ def _is_devanagari(ch: str) -> bool:
 def deva_word_to_latin(word: str) -> str:
     """Transliterate one Devanagari word to lowercase Latin, dropping the final schwa."""
     word = word.replace("‌", "").replace("‍", "")
+    # ITRANS has no mapping for the "candra" vowels used in English loanwords (वॉटर, डॉग, कॅट).
+    word = word.translate(_CANDRA)
     if not word:
         return ""
     last = word[-1]
@@ -63,12 +66,14 @@ class Token:
     raw: str  # lowercase Latin surface form (used for digits and display)
     key: str  # phonetic key (used for matching)
     deva: bool = False  # came from Devanagari script
+    orig: str = ""  # the Devanagari word as written (Devanagari tokens only)
 
     @property
     def stop_key(self) -> str:
-        # Devanagari and Latin stopwords are kept apart: आम ("aam", mango) transliterates
-        # to "am", which must not be dropped as the English word "am".
-        return f"deva:{self.raw}" if self.deva else self.raw
+        # Devanagari stopwords compare on the original spelling: आम ("aam", mango) must not be
+        # dropped as the English "am", and दीया (lamp) must not be dropped as दिया (gave),
+        # although both transliterate to "diya".
+        return f"deva:{self.orig}" if self.deva else self.raw
 
 
 def tokenize(text: str) -> list[Token]:
@@ -77,7 +82,7 @@ def tokenize(text: str) -> list[Token]:
         word = m.group(0)
         if _is_devanagari(word[0]) or word[0] in "‌‍":
             for part in _NON_ALNUM.sub(" ", deva_word_to_latin(word)).split():
-                out.append(Token(part, phonetic_key(part), True))
+                out.append(Token(part, phonetic_key(part), True, word))
         else:
             low = word.lower()
             out.append(Token(low, phonetic_key(low), False))

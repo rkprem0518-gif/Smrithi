@@ -7,7 +7,7 @@ from datetime import datetime
 from typing import Any
 
 from app.scoring.matching import Lexicon, build_lexicon
-from app.scoring.normalize import phonetic_key, stop_keys, tokenize
+from app.scoring.normalize import stop_keys, tokenize
 
 TASKS = ("hearing", "schooling", "learning", "fluency", "orientation", "recall", "close")
 
@@ -87,8 +87,12 @@ class ScoringConfig:
                 {e["id"]: [e["hi"], e["en"], *e.get("variants", [])] for e in entries}
             )
         orient = scoring["orientation"]
-        hindu_all = {phonetic_key(t.raw): [] for words in orient["hindu_months"].values()
-                     for w in words for t in tokenize(str(w))}
+        # Canonical id = the word's own key; the original spelling is kept as a variant so
+        # Devanagari answers (कार्तिक) match Devanagari-derived keys.
+        hindu_all: dict[str, list[str]] = {}
+        for words in orient["hindu_months"].values():
+            for w in words:
+                hindu_all.setdefault(" ".join(t.key for t in tokenize(str(w))), []).append(str(w))
         return cls(
             raw=scoring,
             threshold=float(scoring["matching"]["fuzzy_threshold"]),

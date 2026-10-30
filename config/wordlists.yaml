@@ -8,38 +8,38 @@
 
 forms:
   A:
-    - {id: ghar,    hi: घर,      en: house,  variants: [gharr, ghr, gar, makaan, मकान, home]}
-    - {id: paani,   hi: पानी,    en: water,  variants: [pani, paanee, panee, jal, जल]}
-    - {id: ped,     hi: पेड़,     en: tree,   variants: [per, perh, pedh, पेड, vriksh]}
-    - {id: roti,    hi: रोटी,    en: bread,  variants: [rotee, rooti, chapati, chapatti, चपाती]}
-    - {id: kitaab,  hi: किताब,   en: book,   variants: [kitab, kitaabein, kitabein, pustak, पुस्तक]}
+    - {id: ghar,    hi: घर,      en: house,  variants: [gharr, ghr, makaan, मकान, home, हाउस, होम]}
+    - {id: paani,   hi: पानी,    en: water,  variants: [pani, paanee, panee, jal, जल, वॉटर, वाटर]}
+    - {id: ped,     hi: पेड़,     en: tree,   variants: [perh, pedh, पेड, vriksh, पेड़ों, ट्री]}
+    - {id: roti,    hi: रोटी,    en: bread,  variants: [rotee, rooti, chapati, chapatti, चपाती, रोटियाँ, ब्रेड]}
+    - {id: kitaab,  hi: किताब,   en: book,   variants: [kitab, kitaabein, kitabein, pustak, पुस्तक, बुक]}
     - {id: chaabi,  hi: चाबी,    en: key,    variants: [chabi, chaabee, chabhi, chaabhi, चाभी]}
-    - {id: darwaza, hi: दरवाज़ा,  en: door,   variants: [darwaja, darvaza, darvaja, दरवाजा, dwar]}
-    - {id: chaand,  hi: चाँद,    en: moon,   variants: [chand, chaand, चांद, chanda, चंदा]}
-    - {id: kursi,   hi: कुर्सी,   en: chair,  variants: [kursee, kurshi, कुरसी]}
-    - {id: phool,   hi: फूल,     en: flower, variants: [phul, fool, ful, pushp]}
+    - {id: darwaza, hi: दरवाज़ा,  en: door,   variants: [darwaja, darvaza, darvaja, दरवाजा, dwar, डोर]}
+    - {id: chaand,  hi: चाँद,    en: moon,   variants: [chand, chaand, चांद, chanda, चंदा, मून]}
+    - {id: kursi,   hi: कुर्सी,   en: chair,  variants: [kursee, kurshi, कुरसी, चेयर]}
+    - {id: phool,   hi: फूल,     en: flower, variants: [phul, ful, pushp, फ्लावर, फ्लॉवर, फूलों]}
   B:
-    - {id: nadi,    hi: नदी,     en: river,    variants: [nadee, nadi, darya, दरिया]}
-    - {id: chappal, hi: चप्पल,   en: slippers, variants: [chapal, chappals, slipper, चपल]}
-    - {id: aam,     hi: आम,      en: mango,    variants: [aamm, mangoes, आम्र]}
-    - {id: ghadi,   hi: घड़ी,     en: watch,    variants: [ghari, gadi, ghadee, घडी, clock]}
+    - {id: nadi,    hi: नदी,     en: river,    variants: [nadee, nadi, darya, दरिया, रिवर]}
+    - {id: chappal, hi: चप्पल,   en: slippers, variants: [chapal, chappals, slipper, चपल, स्लिपर, स्लीपर]}
+    - {id: aam,     hi: आम,      en: mango,    variants: [aamm, mangoes, आम्र, मैंगो]}
+    - {id: ghadi,   hi: घड़ी,     en: watch,    variants: [ghari, ghadee, घडी, clock, वॉच, घड़ियाँ]}
     - {id: gilaas,  hi: गिलास,   en: glass,    variants: [gilas, glaas, ग्लास]}
-    - {id: thali,   hi: थाली,    en: plate,    variants: [thaali, thalee, thaal]}
-    - {id: baadal,  hi: बादल,    en: cloud,    variants: [badal, baadal, clouds]}
-    - {id: sabun,   hi: साबुन,   en: soap,     variants: [saabun, saboon, sabun]}
-    - {id: taala,   hi: ताला,    en: lock,     variants: [tala, taalaa]}
-    - {id: pankha,  hi: पंखा,    en: fan,      variants: [pankhaa, panka, पँखा]}
+    - {id: thali,   hi: थाली,    en: plate,    variants: [thaali, thalee, thaal, प्लेट]}
+    - {id: baadal,  hi: बादल,    en: cloud,    variants: [badal, baadal, clouds, क्लाउड, बादलों]}
+    - {id: sabun,   hi: साबुन,   en: soap,     variants: [saabun, saboon, sabun, सोप]}
+    - {id: taala,   hi: ताला,    en: lock,     variants: [tala, taalaa, ताले, लॉक]}
+    - {id: pankha,  hi: पंखा,    en: fan,      variants: [pankhaa, panka, पँखा, फैन]}
   C:
-    - {id: diya,    hi: दीया,    en: lamp,     variants: [diya, deeya, diyaa, दिया, deepak, दीपक]}
-    - {id: rassi,   hi: रस्सी,   en: rope,     variants: [rasi, rassee, rasee]}
-    - {id: chhata,  hi: छाता,    en: umbrella, variants: [chata, chhaata, chaata, छतरी, chhatri]}
-    - {id: patta,   hi: पत्ता,   en: leaf,     variants: [pata, pattaa, patti, पत्ती, leaves]}
-    - {id: bazaar,  hi: बाज़ार,   en: market,   variants: [bazar, baazaar, बाजार, haat, हाट]}
-    - {id: kapda,   hi: कपड़ा,   en: cloth,    variants: [kapra, kapada, kapde, कपड़े, clothes]}
-    - {id: dhoop,   hi: धूप,     en: sunlight, variants: [dhup, dhoop, sunshine, sun light]}
-    - {id: chammach, hi: चम्मच,  en: spoon,    variants: [chamach, chammach, chamcha, चमचा]}
-    - {id: botal,   hi: बोतल,    en: bottle,   variants: [bottal, botel, bottle]}
-    - {id: mez,     hi: मेज़,     en: table,    variants: [mej, mez, मेज]}
+    - {id: diya,    hi: दीया,    en: lamp,     variants: [deeya, diyaa, deepak, दीपक, लैंप, लैम्प]}
+    - {id: rassi,   hi: रस्सी,   en: rope,     variants: [rasi, rassee, rasee, रोप]}
+    - {id: chhata,  hi: छाता,    en: umbrella, variants: [chata, chhaata, chaata, छतरी, chhatri, छाते, अम्ब्रेला]}
+    - {id: patta,   hi: पत्ता,   en: leaf,     variants: [pattaa, leaves, पत्ते, लीफ]}
+    - {id: bazaar,  hi: बाज़ार,   en: market,   variants: [bazar, baazaar, बाजार, haat, हाट, मार्केट]}
+    - {id: kapda,   hi: कपड़ा,   en: cloth,    variants: [kapra, kapada, kapde, कपड़े, clothes, क्लॉथ]}
+    - {id: dhoop,   hi: धूप,     en: sunlight, variants: [dhup, dhoop, sunshine, sun light, सनलाइट]}
+    - {id: chammach, hi: चम्मच,  en: spoon,    variants: [chamach, chammach, chamcha, चमचा, स्पून]}
+    - {id: botal,   hi: बोतल,    en: bottle,   variants: [bottal, botel, bottle, बॉटल, बोतलें]}
+    - {id: mez,     hi: मेज़,     en: table,    variants: [mej, mez, मेज, टेबल]}
 
 # Common Hindi/English filler that must never be matched as a list word or an animal.
 stopwords: [
@@ -48,12 +48,14 @@ stopwords: [
   haan, han, ha, ji, haanji, nahi, nahin, nai, na, aur, phir, fir, ek, kya, kuch, mujhe, mai, main,
   hai, hain, tha, thi, the, to, toh, bhi, wo, woh, ye, yeh, matlab, accha, acha, theek, thik,
   bas, yaad, nahi, pata, sab, aa, raha, rahi, hum, ham, aap, beta, ab, abhi, kaun, sa, ka, ki, ke,
-  se, ko, par, pe, ne, ho, hoga, hogi, jo, ji, dekho, suno, haa, achha
+  se, ko, par, pe, ne, ho, hoga, hogi, jo, ji, dekho, suno, haa, achha,
+  gaya, gayi, gaye, arre, baar, baat, aata, aati, agar, sahi, bata, bataya, bhool, bhul, mahina, mahine
 ]
 
 # Devanagari filler, applied only to tokens written in Devanagari (so आम is never dropped as "am").
 stopwords_devanagari: [
   हाँ, हां, जी, नहीं, ना, और, फिर, एक, क्या, कुछ, मुझे, मैं, है, हैं, था, थी, थे, तो, भी, वो, वह,
   ये, यह, मतलब, अच्छा, ठीक, बस, याद, पता, सब, हम, आप, बेटा, बेटी, अब, अभी, कौन, सा, का, की, के,
-  से, को, पर, पे, ने, हो, जो, बाकी, नाम, में, हूँ, हूं, रहा, रही, गया, गई, लिया, आया
+  से, को, पर, पे, ने, हो, जो, बाकी, नाम, में, हूँ, हूं, रहा, रही, गया, गई, लिया, आया,
+  गयी, गये, गए, भूल, अरे, हम्म, बार, बात, आता, आती, हर, अगर, दूर, चार, सही, मै, बता, बताया, दिया, महीना, महीने
 ]

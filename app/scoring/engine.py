@@ -19,7 +19,7 @@ def _empty_answers(
         "schooling": [schooling_answered],
         "learning": list(learning["answered"]),
         "fluency": [fluency["answered"]],
-        "orientation": [i < orientation["answered_turns"] for i in range(orientation["max"])],
+        "orientation": [i < orientation["answered_items"] for i in range(orientation["max"])],
         "delayed_recall": [recall["answered"]],
     }
     total = sum(len(v) for v in slots.values())

@@ -1,4 +1,12 @@
-"""Deterministic fuzzy matching of transcript tokens against word lists and lexicons."""
+"""Deterministic fuzzy matching of transcript tokens against word lists and lexicons.
+
+Guards against false positives (found in peer review):
+- Script-aware: a Devanagari token only matches keys that came from Devanagari variants,
+  so रात is not "rat", बात is not "bat" and चार is not "chair".
+- Keys shorter than 5 letters match exactly; longer ones fuzzily (ratio >= threshold)
+  and only with the same first letter.
+- Plural/oblique endings (किताबें, घोड़े, फूलों, रोटियाँ) are retried as exact matches.
+"""
 
 from __future__ import annotations
 
@@ -10,25 +18,41 @@ from rapidfuzz import fuzz, process
 from app.scoring.normalize import Token, tokenize
 
 DEFAULT_THRESHOLD = 85
-MIN_FUZZY_LEN = 3  # shorter keys must match exactly
+MIN_FUZZY_LEN = 5  # shorter keys must match exactly
+MIN_INFLECTED_LEN = 5  # only strip endings from tokens at least this long
+
+# (ending, replacements) tried in order; result must match exactly.
+_ENDINGS = (
+    ("iyan", ("i",)), ("iyam", ("i",)), ("iyon", ("i",)), ("iyom", ("i",)),
+    ("en", ("", "a")), ("em", ("", "a")), ("on", ("", "a")), ("om", ("", "a")),
+    ("e", ("a", "i", "")),
+)
 
 
 @dataclass(frozen=True)
 class Lexicon:
     """Maps phonetic keys (possibly multi-word) to a canonical id."""
 
-    keys: dict[str, str]
+    keys: dict[str, str]  # every key (Latin tokens may match any of them)
+    deva_keys: dict[str, str] = field(default_factory=dict)  # keys from Devanagari variants
     max_ngram: int = 1
     _choices: tuple[str, ...] = field(default=(), repr=False)
+    _deva_choices: tuple[str, ...] = field(default=(), repr=False)
 
     @property
     def choices(self) -> tuple[str, ...]:
         return self._choices or tuple(self.keys)
 
+    def for_script(self, deva: bool) -> tuple[dict[str, str], tuple[str, ...]]:
+        if deva:
+            return self.deva_keys, self._deva_choices or tuple(self.deva_keys)
+        return self.keys, self.choices
+
 
 def build_lexicon(groups: Mapping[str, Iterable[str]]) -> Lexicon:
     """`groups` maps canonical id -> spelling variants (Devanagari, Latin, English)."""
     keys: dict[str, str] = {}
+    deva_keys: dict[str, str] = {}
     max_ngram = 1
     for canonical, variants in groups.items():
         for variant in [canonical, *variants]:
@@ -37,8 +61,11 @@ def build_lexicon(groups: Mapping[str, Iterable[str]]) -> Lexicon:
                 continue
             key = " ".join(t.key for t in toks)
             keys.setdefault(key, canonical)
+            if all(t.deva for t in toks):
+                deva_keys.setdefault(key, canonical)
             max_ngram = max(max_ngram, len(toks))
-    return Lexicon(keys=keys, max_ngram=max_ngram, _choices=tuple(keys))
+    return Lexicon(keys=keys, deva_keys=deva_keys, max_ngram=max_ngram,
+                   _choices=tuple(keys), _deva_choices=tuple(deva_keys))
 
 
 @dataclass(frozen=True)
@@ -49,15 +76,33 @@ class Match:
     position: int  # token index in the scanned text
 
 
-def match_key(key: str, lexicon: Lexicon, threshold: float = DEFAULT_THRESHOLD) -> tuple[str, float] | None:
-    if key in lexicon.keys:
-        return lexicon.keys[key], 100.0
-    if len(key.replace(" ", "")) < MIN_FUZZY_LEN:
+def _inflection_candidates(key: str) -> list[str]:
+    if len(key) < MIN_INFLECTED_LEN:
+        return []
+    out = []
+    for ending, replacements in _ENDINGS:
+        if key.endswith(ending):
+            stem = key[: -len(ending)]
+            out.extend(stem + r for r in replacements if len(stem + r) >= 3)
+    return out
+
+
+def match_key(
+    key: str, lexicon: Lexicon, threshold: float = DEFAULT_THRESHOLD, deva: bool = False
+) -> tuple[str, float] | None:
+    keys, choices = lexicon.for_script(deva)
+    if key in keys:
+        return keys[key], 100.0
+    for cand in _inflection_candidates(key):
+        if cand in keys:
+            return keys[cand], 99.0
+    if len(key.replace(" ", "")) < MIN_FUZZY_LEN or not choices:
         return None
-    best = process.extractOne(key, lexicon.choices, scorer=fuzz.ratio, score_cutoff=threshold)
+    same_initial = [c for c in choices if c[:1] == key[:1]]
+    best = process.extractOne(key, same_initial, scorer=fuzz.ratio, score_cutoff=threshold)
     if best is None:
         return None
-    return lexicon.keys[best[0]], float(best[1])
+    return keys[best[0]], float(best[1])
 
 
 def find_matches(
@@ -68,8 +113,7 @@ def find_matches(
 ) -> tuple[list[Match], list[str]]:
     """Greedy left-to-right scan, longest n-gram first.
 
-    Returns (matches in order, unmatched content tokens). Stopwords are never matched,
-    so filler like English "am" cannot be read as the list word "aam".
+    Returns (matches in order, unmatched content tokens). Stopwords are never matched.
     """
     matches: list[Match] = []
     unmatched: list[str] = []
@@ -81,15 +125,16 @@ def find_matches(
         hit: tuple[str, float, int] | None = None
         for n in range(min(lexicon.max_ngram, len(tokens) - i), 0, -1):
             window = tokens[i : i + n]
-            if n > 1 and any(t.stop_key in stopwords for t in window):
-                continue
+            deva = all(t.deva for t in window)
             if n == 1:
-                found = match_key(window[0].key, lexicon, threshold)
+                found = match_key(window[0].key, lexicon, threshold, deva)
             else:
                 # Multi-word windows match exactly only: fuzzy-matching glued neighbours
                 # ("chhata rassi" ~ "chhatri") would swallow a correct second word.
-                spaced, glued = " ".join(t.key for t in window), "".join(t.key for t in window)
-                exact = lexicon.keys.get(spaced) or lexicon.keys.get(glued)
+                if any(t.stop_key in stopwords for t in window):
+                    continue
+                keys, _ = lexicon.for_script(deva)
+                exact = keys.get(" ".join(t.key for t in window)) or keys.get("".join(t.key for t in window))
                 found = (exact, 100.0) if exact else None
             if found is not None:
                 hit = (found[0], found[1], n)

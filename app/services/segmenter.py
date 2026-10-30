@@ -20,10 +20,16 @@ from rapidfuzz import fuzz
 from app.scoring.normalize import normalize_text
 from app.scoring.types import TASKS, Segments, Turn
 
-_ROLE_LINE = re.compile(r"^\s*(assistant|agent|bot|ai|user|human|customer|caller)\s*:\s?(.*)$", re.I)
+_ROLE_LINE = re.compile(
+    r"^\s*(assistant|agent|bot|ai|user|human|customer|caller|system|tool|function)\s*:\s?(.*)$", re.I
+)
 _AGENT_ROLES = {"assistant", "agent", "bot", "ai"}
+_DROPPED_ROLES = {"system", "tool", "function"}
 FUZZY_MARKER_THRESHOLD = 92
 FLAGS = ("stopped", "declined")
+# An agent turn may move the task pointer forward by at most this many tasks, so an overview
+# sentence that mentions a late marker ("... आख़िरी सवाल ...") cannot skip the whole call.
+MAX_JUMP = 3
 
 
 def _role(label: str) -> str:
@@ -32,11 +38,14 @@ def _role(label: str) -> str:
 
 def parse_bolna_transcript(transcript: str | None) -> list[Turn]:
     turns: list[Turn] = []
-    for line in (transcript or "").splitlines():
+    dropping = False
+    for line in (transcript or "").lstrip("﻿").splitlines():
         m = _ROLE_LINE.match(line)
         if m:
-            turns.append(Turn(_role(m.group(1)), m.group(2).strip()))
-        elif line.strip() and turns:
+            dropping = m.group(1).lower() in _DROPPED_ROLES  # system/tool lines are not speech
+            if not dropping:
+                turns.append(Turn(_role(m.group(1)), m.group(2).strip()))
+        elif line.strip() and turns and not dropping:
             prev = turns[-1]
             turns[-1] = Turn(prev.role, f"{prev.text} {line.strip()}".strip(), prev.t)
     return [t for t in turns if t.text]
@@ -94,7 +103,8 @@ def segment(turns: Sequence[Turn], marker_phrases: Mapping[str, Sequence[str]]) 
                     if pos is not None:
                         hits.append((pos, name))
             for _, name in sorted(hits):
-                if current is None or TASKS.index(name) > TASKS.index(current):
+                here = -1 if current is None else TASKS.index(current)
+                if here < TASKS.index(name) <= here + MAX_JUMP:
                     current = name
                     seg.markers_found.append(name)
                     seg.tasks.setdefault(name, [])
