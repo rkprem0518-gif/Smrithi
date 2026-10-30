@@ -1,0 +1,9 @@
+.env
+*.db
+*.db-journal
+__pycache__/
+*.pyc
+.venv/
+recordings/
+.pytest_cache/
+.ruff_cache/
