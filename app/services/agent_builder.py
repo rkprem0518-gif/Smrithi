@@ -18,9 +18,18 @@ def build_agent_payload(
     prompt: str,
     cfg: ScoringConfig | None = None,
     with_keywords: bool = False,
+    language: str = "hi",
 ) -> dict[str, Any]:
     agent_config = copy.deepcopy(template["agent_config"])
     task = agent_config["tasks"][0]
+    variant = template.get("language_variants", {}).get(language)
+    if variant:
+        # TODO(bolna): confirm Sarvam saaras:v4 + bulbul:v3 voice "suhani" with language "kn".
+        agent_config["agent_name"] += variant["agent_name_suffix"]
+        agent_config["agent_welcome_message"] = variant["agent_welcome_message"]
+        task["tools_config"]["transcriber"]["language"] = variant["transcriber_language"]
+        task["tools_config"]["synthesizer"]["provider_config"]["language"] = variant["synthesizer_language"]
+        task["task_config"]["call_hangup_message"] = variant["call_hangup_message"]
     task["task_config"]["call_terminate"] = int(settings.max_call_minutes) * 60
     if settings.webhook_reachable:
         agent_config["webhook_url"] = settings.webhook_url

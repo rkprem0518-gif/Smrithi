@@ -26,6 +26,7 @@ _ENDINGS = (
     ("iyan", ("i",)), ("iyam", ("i",)), ("iyon", ("i",)), ("iyom", ("i",)),
     ("en", ("", "a")), ("em", ("", "a")), ("on", ("", "a")), ("om", ("", "a")),
     ("e", ("a", "i", "")),
+    ("galu", ("", "u")), ("gal", ("", "u")),  # Kannada plural: ನಾಯಿಗಳು, ಮರಗಳು
 )
 
 
@@ -35,17 +36,22 @@ class Lexicon:
 
     keys: dict[str, str]  # every key (Latin tokens may match any of them)
     deva_keys: dict[str, str] = field(default_factory=dict)  # keys from Devanagari variants
+    knda_keys: dict[str, str] = field(default_factory=dict)  # keys from Kannada variants
     max_ngram: int = 1
     _choices: tuple[str, ...] = field(default=(), repr=False)
     _deva_choices: tuple[str, ...] = field(default=(), repr=False)
+    _knda_choices: tuple[str, ...] = field(default=(), repr=False)
 
     @property
     def choices(self) -> tuple[str, ...]:
         return self._choices or tuple(self.keys)
 
-    def for_script(self, deva: bool) -> tuple[dict[str, str], tuple[str, ...]]:
-        if deva:
+    def for_script(self, script: str | bool) -> tuple[dict[str, str], tuple[str, ...]]:
+        """Indic tokens only match keys from the same script; Latin tokens match everything."""
+        if script is True or script == "deva":
             return self.deva_keys, self._deva_choices or tuple(self.deva_keys)
+        if script == "knda":
+            return self.knda_keys, self._knda_choices or tuple(self.knda_keys)
         return self.keys, self.choices
 
 
@@ -53,6 +59,7 @@ def build_lexicon(groups: Mapping[str, Iterable[str]]) -> Lexicon:
     """`groups` maps canonical id -> spelling variants (Devanagari, Latin, English)."""
     keys: dict[str, str] = {}
     deva_keys: dict[str, str] = {}
+    knda_keys: dict[str, str] = {}
     max_ngram = 1
     for canonical, variants in groups.items():
         for variant in [canonical, *variants]:
@@ -61,11 +68,13 @@ def build_lexicon(groups: Mapping[str, Iterable[str]]) -> Lexicon:
                 continue
             key = " ".join(t.key for t in toks)
             keys.setdefault(key, canonical)
-            if all(t.deva for t in toks):
+            if all(t.script == "deva" for t in toks):
                 deva_keys.setdefault(key, canonical)
+            if all(t.script == "knda" for t in toks):
+                knda_keys.setdefault(key, canonical)
             max_ngram = max(max_ngram, len(toks))
-    return Lexicon(keys=keys, deva_keys=deva_keys, max_ngram=max_ngram,
-                   _choices=tuple(keys), _deva_choices=tuple(deva_keys))
+    return Lexicon(keys=keys, deva_keys=deva_keys, knda_keys=knda_keys, max_ngram=max_ngram,
+                   _choices=tuple(keys), _deva_choices=tuple(deva_keys), _knda_choices=tuple(knda_keys))
 
 
 @dataclass(frozen=True)
@@ -77,9 +86,9 @@ class Match:
 
 
 def _inflection_candidates(key: str) -> list[str]:
+    out = [key[:-1]] if len(key) >= 4 and key.endswith("s") else []  # English plural: dogs, keys, trees
     if len(key) < MIN_INFLECTED_LEN:
-        return []
-    out = []
+        return out
     for ending, replacements in _ENDINGS:
         if key.endswith(ending):
             stem = key[: -len(ending)]
@@ -88,7 +97,7 @@ def _inflection_candidates(key: str) -> list[str]:
 
 
 def match_key(
-    key: str, lexicon: Lexicon, threshold: float = DEFAULT_THRESHOLD, deva: bool = False
+    key: str, lexicon: Lexicon, threshold: float = DEFAULT_THRESHOLD, deva: str | bool = False
 ) -> tuple[str, float] | None:
     keys, choices = lexicon.for_script(deva)
     if key in keys:
@@ -98,7 +107,8 @@ def match_key(
             return keys[cand], 99.0
     if len(key.replace(" ", "")) < MIN_FUZZY_LEN or not choices:
         return None
-    same_initial = [c for c in choices if c[:1] == key[:1]]
+    # Both sides must be long enough: a short lexicon key (kuri) must not absorb a longer word (kursi).
+    same_initial = [c for c in choices if c[:1] == key[:1] and len(c.replace(" ", "")) >= MIN_FUZZY_LEN]
     best = process.extractOne(key, same_initial, scorer=fuzz.ratio, score_cutoff=threshold)
     if best is None:
         return None
@@ -125,7 +135,8 @@ def find_matches(
         hit: tuple[str, float, int] | None = None
         for n in range(min(lexicon.max_ngram, len(tokens) - i), 0, -1):
             window = tokens[i : i + n]
-            deva = all(t.deva for t in window)
+            scripts = {t.script for t in window}
+            deva = scripts.pop() if len(scripts) == 1 else "latin"
             if n == 1:
                 found = match_key(window[0].key, lexicon, threshold, deva)
             else:

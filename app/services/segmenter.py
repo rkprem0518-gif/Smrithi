@@ -66,15 +66,15 @@ def turns_to_bolna_transcript(turns: Sequence[Turn]) -> str:
     return "\n".join(f"{'assistant' if t.role == 'agent' else 'user'}: {t.text}" for t in turns)
 
 
-def _marker_position(text_key: str, phrase_keys: Sequence[str]) -> int | None:
-    """Position of the marker inside the agent turn, or None. Exact first, then fuzzy."""
+def _marker_position(text_key: str, phrase_keys: Sequence[str], fuzzy: bool = True) -> int | None:
+    """Position of the marker inside the agent turn, or None. Exact first, then (optionally) fuzzy."""
     padded = f" {text_key} "
     best: int | None = None
     for p in phrase_keys:
         idx = padded.find(f" {p} ")
         if idx >= 0:
             best = idx if best is None else max(best, idx)
-    if best is not None:
+    if best is not None or not fuzzy:
         return best
     for p in phrase_keys:
         if len(p) >= 8:
@@ -96,12 +96,17 @@ def segment(turns: Sequence[Turn], marker_phrases: Mapping[str, Sequence[str]]) 
                 if flag in keyed and _marker_position(text_key, keyed[flag]) is not None:
                     setattr(seg, flag, True)
                     seg.markers_found.append(flag)
-            hits = []
-            for name in TASKS:
-                if name in keyed:
-                    pos = _marker_position(text_key, keyed[name])
-                    if pos is not None:
-                        hits.append((pos, name))
+            # Exact markers first; fuzzy only if the turn has none. Fuzzy alone would confuse
+            # near-identical ordinals (Kannada ಎರಡನೇ ಕೆಲಸ "2nd task" vs ಐದನೇ ಕೆಲಸ "5th task").
+            hits: list[tuple[int, str]] = []
+            for fuzzy in (False, True):
+                for name in TASKS:
+                    if name in keyed:
+                        pos = _marker_position(text_key, keyed[name], fuzzy)
+                        if pos is not None:
+                            hits.append((pos, name))
+                if hits:
+                    break
             for _, name in sorted(hits):
                 here = -1 if current is None else TASKS.index(current)
                 if here < TASKS.index(name) <= here + MAX_JUMP:

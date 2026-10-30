@@ -31,7 +31,7 @@ Each agent turn is checked for markers (exact match on normalised text, then fuz
 
 1. Unicode NFC; Devanagari words are transliterated (ITRANS) with the final schwa dropped (घर → ghar), lowercased, punctuation removed. Dandas (। ॥) are punctuation.
 2. A **phonetic key** collapses spelling variation: `ee→i`, `oo→u`, `w→v`, `z→j`, anusvara before a stop → `n` (पंखा → pankha), doubled letters → single.
-3. Each token is looked up exactly, then with **rapidfuzz ratio ≥ 85** against every variant of the active word form (Devanagari, Latin spellings, English). Keys shorter than 3 letters must match exactly. Multi-word variants ("sun light") match exactly only, so two neighbouring list words are never glued into one.
+3. Each token is looked up exactly, then (plural/oblique endings stripped: -en, -on, -iyan, -e, -s, Kannada -galu) exactly again, then with **rapidfuzz ratio ≥ 85** and the same first letter, only when both keys have 5+ letters. Devanagari tokens match only Devanagari-derived spellings and Kannada tokens only Kannada ones (so रात is never "rat"); Latin tokens match everything. Multi-word variants ("sun light") match exactly only, so two neighbouring list words are never glued into one.
 4. **Stopwords** are never matched. Latin and Devanagari stopwords are kept apart, so आम ("aam", mango) is not dropped as the English word "am".
 5. Each word counts **once per trial**. Words that do not match the active form are logged as **intrusions** (shown on the report, not counted).
 
@@ -96,4 +96,6 @@ Original, culturally familiar, concrete, **no animals** (so they cannot clash wi
 |---|---|
 | A | ghar, paani, ped, roti, kitaab, chaabi, darwaza, chaand, kursi, phool |
 | B | nadi, chappal, aam, ghadi, gilaas, thali, baadal, sabun, taala, pankha |
-| C | diya, rassi, chhata, patta, bazaar, kapda, dhoop, chammach, botal, mez |
+| C | dibba (box), rassi, chhata, patta, bazaar, kapda, dhoop, chammach, botal, mez |
+
+Every word also has a Kannada form (`kn`), read aloud on Kannada calls: A = ಮನೆ, ನೀರು, ಮರ, ರೊಟ್ಟಿ, ಪುಸ್ತಕ, ಕೀಲಿ, ಬಾಗಿಲು, ಚಂದ್ರ, ಕುರ್ಚಿ, ಹೂವು. Form C's lamp (दीया) was replaced by box (डिब्बा) because speech-to-text writes it the same as दिया ("gave").

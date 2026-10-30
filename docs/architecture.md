@@ -97,6 +97,6 @@ Bolna execution status → session status:
 
 ## Reliability
 
-- Bolna client: 15 s timeout, 3 retries with exponential backoff on 5xx and network errors, no retry on 4xx, typed errors (`BolnaAuthError`, `BolnaNotFound`, `BolnaRateLimited`, `BolnaClientError`, `BolnaServerError`, `BolnaNetworkError`).
+- Bolna client: 15 s timeout, 3 retries with exponential backoff on 5xx and network errors for reads (placing a call or creating an agent is retried only on connection errors, so nobody is dialled twice), no retry on 4xx, typed errors (`BolnaAuthError`, `BolnaNotFound`, `BolnaRateLimited`, `BolnaClientError`, `BolnaServerError`, `BolnaNetworkError`).
 - Final sessions ignore further updates, so a webhook and the poller firing for the same call cannot double-score.
 - Logs are one JSON line per event with ids only; phone-number-like strings and transcript fields are redacted.

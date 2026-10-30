@@ -6,23 +6,23 @@ import re
 from datetime import datetime, timedelta, timezone
 from typing import Any
 
-from app.scoring.matching import Lexicon, find_matches, unique_in_order
+from app.scoring.matching import Lexicon, Match, find_matches, unique_in_order
 from app.scoring.normalize import Token, phonetic_key, tokenize
 from app.scoring.types import ScoringConfig, Turn
 
 NOISE_TOKENS = frozenset({"inaudible", "unintelligible", "noise", "unclear", "blank", "silence"})
 
 _DIGIT_WORDS_RAW = {
-    0: ["zero", "shunya", "sunya", "shoonya", "शून्य"],
-    1: ["one", "ek", "एक"],
-    2: ["two", "do", "दो"],
-    3: ["three", "teen", "tin", "तीन"],
-    4: ["four", "char", "chaar", "चार"],
-    5: ["five", "panch", "paanch", "पाँच", "पांच"],
-    6: ["six", "chhe", "che", "chhah", "chah", "chheh", "छह", "छः", "छे"],
-    7: ["seven", "saat", "sat", "सात", "साथ", "sath", "saath"],  # STT often writes साथ
-    8: ["eight", "aath", "aat", "आठ"],
-    9: ["nine", "nau", "nao", "नौ", "नो", "नव"],
+    0: ["zero", "shunya", "sunya", "shoonya", "शून्य", "ಸೊನ್ನೆ"],
+    1: ["one", "ek", "एक", "ಒಂದು", "ondu"],
+    2: ["two", "do", "दो", "ಎರಡು", "eradu"],
+    3: ["three", "teen", "tin", "तीन", "ಮೂರು", "mooru"],
+    4: ["four", "char", "chaar", "चार", "ನಾಲ್ಕು", "nalku"],
+    5: ["five", "panch", "paanch", "पाँच", "पांच", "ಐದು", "aidu"],
+    6: ["six", "chhe", "che", "chhah", "chah", "chheh", "छह", "छः", "छे", "ಆರು", "aaru"],
+    7: ["seven", "saat", "sat", "सात", "साथ", "sath", "saath", "ಏಳು", "elu"],  # STT often writes साथ
+    8: ["eight", "aath", "aat", "आठ", "ಎಂಟು", "entu"],
+    9: ["nine", "nau", "nao", "नौ", "नो", "नव", "ಒಂಬತ್ತು", "ombattu"],
 }
 DIGIT_WORDS: dict[str, str] = {
     t.key: str(d) for d, words in _DIGIT_WORDS_RAW.items() for w in words for t in tokenize(w)
@@ -52,6 +52,12 @@ _NUMBER_WORDS_RAW = {
     18: ["eighteen", "atharah", "अठारह"], 19: ["nineteen", "unnis", "उन्नीस"],
     20: ["twenty", "bees", "phd", "बीस", "पीएचडी"],
 }
+_KANNADA_SCHOOLING = {
+    0: ["ಓದಿಲ್ಲ", "odilla"], 5: ["ಐದನೇ"], 7: ["ಏಳನೇ"], 8: ["ಎಂಟನೇ"], 10: ["ಹತ್ತನೇ", "ಎಸ್ಎಸ್ಎಲ್ಸಿ", "sslc"],
+    12: ["ಹನ್ನೆರಡನೇ", "ಪಿಯುಸಿ", "puc"], 15: ["ಡಿಗ್ರಿ"],
+}
+_KANNADA_CARDINALS = {1: "ಒಂದು", 2: "ಎರಡು", 3: "ಮೂರು", 4: "ನಾಲ್ಕು", 5: "ಐದು", 6: "ಆರು", 7: "ಏಳು", 8: "ಎಂಟು",
+                      9: "ಒಂಬತ್ತು", 10: "ಹತ್ತು", 11: "ಹನ್ನೊಂದು", 12: "ಹನ್ನೆರಡು"}
 _DEGREES = {
     14: ["college", "कॉलेज"],
     15: ["बीए", "बीएससी", "बीकॉम", "बीकोम", "डिग्री", "bsc", "bcom", "ba"],
@@ -59,11 +65,16 @@ _DEGREES = {
 }
 for _n, _words in _DEGREES.items():
     _NUMBER_WORDS_RAW.setdefault(_n, []).extend(_words)
+for _n, _words in _KANNADA_SCHOOLING.items():
+    _NUMBER_WORDS_RAW.setdefault(_n, []).extend(_words)
+for _n, _word in _KANNADA_CARDINALS.items():
+    _NUMBER_WORDS_RAW.setdefault(_n, []).append(_word)
 # Bare cardinals ("ek", "do") are weak evidence: "एक बात बताऊँ... बारहवीं" means 12, not 1.
 _CARDINALS = [
     "zero", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine", "ten", "eleven", "twelve",
     "ek", "do", "teen", "char", "chaar", "panch", "paanch", "chhe", "chhah", "saat", "aath", "nau", "das", "dus",
     "एक", "दो", "तीन", "चार", "पाँच", "पांच", "छह", "सात", "आठ", "नौ", "दस", "ग्यारह", "बारह",
+    *_KANNADA_CARDINALS.values(),
 ]
 NUMBER_WORDS: dict[str, int] = {
     t.key: n for n, words in _NUMBER_WORDS_RAW.items() for w in words for t in tokenize(w)
@@ -73,21 +84,23 @@ _ABBREV_DOT = re.compile(r"(?<=\S)\.(?=\S)")
 
 PLACE_QUESTION = (
     "gaon", "gav", "ganv", "gaanv", "शहर", "गाँव", "shahar", "jagah", "kahan",
-    "town", "village", "city", "place",
+    "town", "village", "city", "place", "ಊರು", "ಊರಿನಲ್ಲಿ", "ಊರಿನ", "ಹಳ್ಳಿ", "ಪಟ್ಟಣ",
 )
-HELPER_QUESTION = ("madad", "मदद", "help", "helping", "sahayata", "bata raha", "bata rahi")
+HELPER_QUESTION = ("madad", "मदद", "help", "helping", "sahayata", "bata raha", "bata rahi", "ಸಹಾಯ")
 # Someone was telling the answers ("बेटी बता रही थी") even without an explicit "yes".
 HELPER_SAYS = ("bata raha", "bata rahi", "bata rahe", "बता रहा", "बता रही", "बता रहे", "मदद कर रहा",
-               "मदद कर रही", "मदद कर रहे", "madad kar raha", "madad kar rahi", "was helping", "helped me")
+               "मदद कर रही", "मदद कर रहे", "madad kar raha", "madad kar rahi", "was helping", "helped me",
+               "ಹೇಳ್ತಿದ್ದ", "ಹೇಳ್ತಿದ್ಳು", "ಹೇಳುತ್ತಿದ್ದರು", "ಸಹಾಯ ಮಾಡ್ತಿದ್ದ", "ಸಹಾಯ ಮಾಡುತ್ತಿದ್ದರು")
 REPEAT_REQUEST = ("phir se", "fir se", "dobara", "repeat", "again", "kya bola", "sunai nahi", "samajh nahi",
-                  "फिर से", "दोबारा", "क्या बोला", "क्या बोली", "सुनाई नहीं", "समझ नहीं")
+                  "फिर से", "दोबारा", "क्या बोला", "क्या बोली", "सुनाई नहीं", "समझ नहीं",
+                  "ಇನ್ನೊಮ್ಮೆ", "ಮತ್ತೊಮ್ಮೆ", "ಕೇಳಿಸಲಿಲ್ಲ")
 # Which orientation item an agent question asks about, checked in this priority order.
 ORIENTATION_QUESTIONS = (
-    ("time_of_day", ("samay", "समय", "time", "morning", "evening", "subah", "सुबह")),
-    ("season", ("mausam", "मौसम", "season", "ritu", "ऋतु")),
-    ("month", ("mahina", "महीना", "month", "mahine", "महीने")),
+    ("time_of_day", ("samay", "समय", "time", "morning", "evening", "subah", "सुबह", "ಸಮಯ", "ಹೊತ್ತು")),
+    ("season", ("mausam", "मौसम", "season", "ritu", "ऋतु", "ಕಾಲ", "ಋತು")),
+    ("month", ("mahina", "महीना", "month", "mahine", "महीने", "ತಿಂಗಳು")),
     ("place", PLACE_QUESTION),
-    ("day", ("din", "दिन", "day", "vaar", "वार")),
+    ("day", ("din", "दिन", "day", "vaar", "वार", "ವಾರ", "ದಿನ")),
 )
 
 
@@ -123,6 +136,8 @@ def parse_yes_no(text: str, cfg: ScoringConfig) -> bool | None:
     "नहीं नहीं... हाँ" = yes)."""
     toks = tokenize(text)
     no = find_matches(toks, cfg.no_lexicon, threshold=100)[0]
+    if toks and toks[0].raw in ("na", "naa") and len(toks) > 1:
+        no = [Match("no", toks[0].raw, 100.0, 0), *no]
     yes = find_matches(toks, cfg.yes_lexicon, threshold=100)[0]
     if not no and not yes:
         # A bare honorific "जी" / "ji" is a polite yes.

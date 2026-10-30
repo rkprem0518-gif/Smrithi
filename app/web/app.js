@@ -172,7 +172,11 @@ const NAMED = {
         morning: "सुबह", afternoon: "दोपहर", evening: "शाम", night: "रात" },
 };
 
-function wordLabel(w) { return LANG === "hi" ? `${w.hi} (${w.id})` : `${w.id} (${w.en})`; }
+let REPORT_LANG = "hi";
+function wordLabel(w) {
+  if (REPORT_LANG === "kn" && w.kn) return `${w.kn} (${w.en})`;
+  return LANG === "hi" ? `${w.hi} (${w.id})` : `${w.id} (${w.en})`;
+}
 
 function wordChips(wordList, hits) {
   const set = new Set(hits);
@@ -303,6 +307,7 @@ async function pageReport() {
       el("a", { class: "btn", href: `/live.html?id=${encodeURIComponent(id)}`, text: t("live_title") }));
     return;
   }
+  REPORT_LANG = data.report.language;
   rerender = () => renderReport(root, data);
   rerender();
 }

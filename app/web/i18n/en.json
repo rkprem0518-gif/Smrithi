@@ -126,5 +126,7 @@
   "live_ended_title": "Memory check ended",
   "invalid_caveat": "Because the call is invalid, the scores below are shown only for transparency. Do not read them as a result.",
   "load_error": "Could not load the report. Please try again in a moment.",
-  "speaker_user": "Person"
+  "speaker_user": "Person",
+  "lang_kn": "Kannada",
+  "demo_kannada": "Normal (Kannada call)"
 }

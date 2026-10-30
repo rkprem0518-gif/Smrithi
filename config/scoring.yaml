@@ -41,47 +41,47 @@ invalid:
 orientation:
   utc_offset_minutes: 330
   days:
-    0: [monday, somvar, somwar, सोमवार, som]
-    1: [tuesday, mangalvar, mangalwar, मंगलवार, mangal]
-    2: [wednesday, budhvar, budhwar, बुधवार, budh]
-    3: [thursday, guruvar, guruwar, गुरुवार, brihaspativar, बृहस्पतिवार, veervar, वीरवार]
-    4: [friday, shukravar, shukrawar, शुक्रवार, shukra, jumma, जुम्मा]
-    5: [saturday, shanivar, shaniwar, शनिवार, shani]
-    6: [sunday, ravivar, raviwar, रविवार, itvaar, itwar, इतवार]
+    0: [monday, somvar, somwar, सोमवार, som, ಸೋಮವಾರ]
+    1: [tuesday, mangalvar, mangalwar, मंगलवार, mangal, ಮಂಗಳವಾರ]
+    2: [wednesday, budhvar, budhwar, बुधवार, budh, ಬುಧವಾರ]
+    3: [thursday, guruvar, guruwar, गुरुवार, brihaspativar, बृहस्पतिवार, veervar, वीरवार, ಗುರುವಾರ]
+    4: [friday, shukravar, shukrawar, शुक्रवार, shukra, jumma, जुम्मा, ಶುಕ್ರವಾರ]
+    5: [saturday, shanivar, shaniwar, शनिवार, shani, ಶನಿವಾರ]
+    6: [sunday, ravivar, raviwar, रविवार, itvaar, itwar, इतवार, ಭಾನುವಾರ, ರವಿವಾರ]
   months:
-    1: [january, janvari, janwari, जनवरी]
-    2: [february, farvari, farwari, फरवरी, फ़रवरी]
-    3: [march, maarch, मार्च]
-    4: [april, aprail, अप्रैल]
-    5: [may, mai, मई]
-    6: [june, joon, jun, जून]
-    7: [july, julai, जुलाई]
-    8: [august, agast, अगस्त]
-    9: [september, sitambar, सितंबर, सितम्बर]
-    10: [october, aktubar, aktoobar, अक्टूबर, अक्तूबर]
-    11: [november, navambar, नवंबर, नवम्बर]
-    12: [december, disambar, दिसंबर, दिसम्बर]
+    1: [january, janvari, janwari, जनवरी, ಜನವರಿ]
+    2: [february, farvari, farwari, फरवरी, फ़रवरी, ಫೆಬ್ರವರಿ]
+    3: [march, maarch, मार्च, ಮಾರ್ಚ್]
+    4: [april, aprail, अप्रैल, ಏಪ್ರಿಲ್]
+    5: [may, mai, मई, ಮೇ]
+    6: [june, joon, jun, जून, ಜೂನ್]
+    7: [july, julai, जुलाई, ಜುಲೈ]
+    8: [august, agast, अगस्त, ಆಗಸ್ಟ್]
+    9: [september, sitambar, सितंबर, सितम्बर, ಸೆಪ್ಟೆಂಬರ್]
+    10: [october, aktubar, aktoobar, अक्टूबर, अक्तूबर, ಅಕ್ಟೋಬರ್]
+    11: [november, navambar, नवंबर, नवम्बर, ನವೆಂಬರ್]
+    12: [december, disambar, दिसंबर, दिसम्बर, ಡಿಸೆಂಬರ್]
   # Traditional Hindu months overlap two Gregorian months; either is accepted (fair to
   # people who track time by the traditional calendar).
   hindu_months:
-    1: [paush, पौष, magh, माघ]
-    2: [magh, माघ, phalgun, फागुन, फाल्गुन]
-    3: [phalgun, फागुन, chaitra, चैत, चैत्र]
-    4: [chaitra, चैत, baisakh, बैसाख, vaishakh]
-    5: [baisakh, बैसाख, jeth, जेठ]
-    6: [jeth, जेठ, asadh, आषाढ़, asaadh]
-    7: [asadh, आषाढ़, sawan, सावन, shravan]
-    8: [sawan, सावन, bhadon, भादों, bhadrapad]
-    9: [bhadon, भादों, ashwin, आश्विन, kwar, क्वार]
-    10: [ashwin, आश्विन, kwar, क्वार, kartik, कार्तिक]
-    11: [kartik, कार्तिक, agahan, अगहन, margashirsha]
-    12: [agahan, अगहन, paush, पौष, poos, पूस]
+    1: [paush, पौष, magh, माघ, ಪುಷ್ಯ, ಮಾಘ]
+    2: [magh, माघ, phalgun, फागुन, फाल्गुन, ಮಾಘ, ಫಾಲ್ಗುಣ]
+    3: [phalgun, फागुन, chaitra, चैत, चैत्र, ಫಾಲ್ಗುಣ, ಚೈತ್ರ]
+    4: [chaitra, चैत, baisakh, बैसाख, vaishakh, ಚೈತ್ರ, ವೈಶಾಖ]
+    5: [baisakh, बैसाख, jeth, जेठ, ವೈಶಾಖ, ಜ್ಯೇಷ್ಠ]
+    6: [jeth, जेठ, asadh, आषाढ़, asaadh, ಜ್ಯೇಷ್ಠ, ಆಷಾಢ]
+    7: [asadh, आषाढ़, sawan, सावन, shravan, ಆಷಾಢ, ಶ್ರಾವಣ]
+    8: [sawan, सावन, bhadon, भादों, bhadrapad, ಶ್ರಾವಣ, ಭಾದ್ರಪದ]
+    9: [bhadon, भादों, ashwin, आश्विन, kwar, क्वार, ಭಾದ್ರಪದ, ಆಶ್ವಯುಜ]
+    10: [ashwin, आश्विन, kwar, क्वार, kartik, कार्तिक, ಆಶ್ವಯುಜ, ಕಾರ್ತಿಕ]
+    11: [kartik, कार्तिक, agahan, अगहन, margashirsha, ಕಾರ್ತಿಕ, ಮಾರ್ಗಶಿರ]
+    12: [agahan, अगहन, paush, पौष, poos, पूस, ಮಾರ್ಗಶಿರ, ಪುಷ್ಯ]
   seasons:
-    winter: [winter, sardi, sardiyan, सर्दी, सर्दियाँ, thand, thandi, ठंड, ठंडी, jaada, जाड़ा, sheet, शीत]
-    summer: [summer, garmi, garmiyan, गर्मी, गर्मियाँ, grishm, ग्रीष्म]
-    monsoon: [monsoon, rainy, rain, rains, barsaat, barsat, बरसात, baarish, barish, बारिश, varsha, वर्षा]
-    spring: [spring, basant, vasant, बसंत, वसंत]
-    autumn: [autumn, sharad, शरद, patjhad, पतझड़, festive]
+    winter: [winter, sardi, sardiyan, सर्दी, सर्दियाँ, thand, thandi, ठंड, ठंडी, jaada, जाड़ा, sheet, शीत, ಚಳಿಗಾಲ, ಚಳಿ, chaligala]
+    summer: [summer, garmi, garmiyan, गर्मी, गर्मियाँ, grishm, ग्रीष्म, ಬೇಸಿಗೆ, ಬೇಸಿಗೆಕಾಲ, besige]
+    monsoon: [monsoon, rainy, rain, rains, barsaat, barsat, बरसात, baarish, barish, बारिश, varsha, वर्षा, ಮಳೆಗಾಲ, ಮಳೆ, malegala]
+    spring: [spring, basant, vasant, बसंत, वसंत, ವಸಂತ, ವಸಂತಕಾಲ]
+    autumn: [autumn, sharad, शरद, patjhad, पतझड़, festive, ಶರತ್ಕಾಲ, ಶರತ್]
   # Seasons accepted for each month (lenient: neighbouring seasons accepted too).
   season_by_month:
     1: [winter]
@@ -97,20 +97,21 @@ orientation:
     11: [winter, autumn]
     12: [winter]
   times_of_day:
-    morning: {hours: [5, 12], words: [morning, subah, subha, सुबह, savera, सवेरा]}
-    afternoon: {hours: [12, 16], words: [afternoon, dopahar, dopehar, दोपहर, noon]}
-    evening: {hours: [16, 20], words: [evening, shaam, sham, शाम, sandhya, संध्या]}
-    night: {hours: [20, 29], words: [night, raat, rat, रात]}   # 20:00 to 05:00 next day
+    morning: {hours: [5, 12], words: [morning, subah, subha, सुबह, savera, सवेरा, ಬೆಳಿಗ್ಗೆ, ಬೆಳಗ್ಗೆ, beligge]}
+    afternoon: {hours: [12, 16], words: [afternoon, dopahar, dopehar, दोपहर, noon, ಮಧ್ಯಾಹ್ನ, madhyahna]}
+    evening: {hours: [16, 20], words: [evening, shaam, sham, शाम, sandhya, संध्या, ಸಂಜೆ, sanje]}
+    night: {hours: [20, 29], words: [night, raat, rat, रात, ರಾತ್ರಿ, ratri]}   # 20:00 to 05:00 next day
   time_boundary_tolerance_minutes: 45   # near a boundary, the neighbouring period also counts
   dont_know: [pata nahi, pata nahin, nahi pata, malum nahi, maloom nahi, nahi malum, nahi maloom, yaad nahi,
               bhool gayi, bhool gaya, bhul gayi, bhul gaya, naam bhool, dont know, do not know, not sure,
-              no idea, पता नहीं, नहीं पता, मालूम नहीं, नहीं मालूम, याद नहीं, भूल गई, भूल गयी, भूल गया, नाम भूल]
+              no idea, पता नहीं, नहीं पता, मालूम नहीं, नहीं मालूम, याद नहीं, भूल गई, भूल गयी, भूल गया, नाम भूल,
+              ಗೊತ್ತಿಲ್ಲ, ನೆನಪಿಲ್ಲ, ಮರೆತುಹೋಯ್ತು, ಮರೆತಿದೆ, gottilla, nenapilla]
 
 # Yes/no parsing for consent and the "is anyone helping you?" question.
 # "ji"/"जी" is an honorific ("नहीं जी" = no); it only counts as yes when said on its own (see parse_yes_no).
-yes_words: [haan, han, haanji, hanji, yes, yeah, bilkul, theek, thik, ok, okay, zaroor, हाँ, हां, जी हाँ, ठीक, बिल्कुल]
+yes_words: [haan, han, haanji, hanji, yes, yeah, bilkul, theek, thik, ok, okay, zaroor, हाँ, हां, जी हाँ, ठीक, बिल्कुल, ಹೌದು, ಹೂಂ, ಸರಿ, ಆಯ್ತು, haudu, aytu]
 # "ना"/"na" is left out on purpose: it is usually a tag particle ("बता रही थी ना").
-no_words: [nahi, nahin, nai, no, nope, koi nahi, akela, akele, akeli, अकेले, अकेला, अकेली, नहीं, नही]
+no_words: [nahi, nahin, nai, no, nope, koi nahi, akela, akele, akeli, अकेले, अकेला, अकेली, नहीं, नही, नई, नो, ಇಲ್ಲ, ಇಲ್ಲಾ, ಬೇಡ, illa, beda]
 
 # Experimental speech markers (shown in a collapsed section; NEVER used for the outcome).
 speech_markers:
