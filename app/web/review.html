@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Reviewer queue - Smriti</title>
+<meta name="description" content="Smriti: a 5-minute phone memory check in Hindi or English. Pilot, not a diagnosis.">
+<link rel="stylesheet" href="/styles.css">
+<script src="/app.js" defer></script>
+</head>
+<body data-page="review">
+<header class="top"><div class="wrap">
+  <a class="brand" href="/index.html"><span class="brand-mark" aria-hidden="true"></span><span data-i18n="brand">Smriti</span></a>
+  <div class="top-actions">
+    <button id="lang-toggle" class="btn secondary small lang-toggle" type="button" data-i18n="lang_toggle">हिन्दी</button>
+  </div>
+</div></header>
+<main><div class="wrap">
+<p id="demo-banner" class="notice small" data-i18n="demo_banner" hidden></p>
+
+<h1 data-i18n="review_title"></h1>
+<p class="lead" data-i18n="review_lead"></p>
+<form id="token-form" class="card no-print">
+  <div class="field">
+    <label for="token" data-i18n="token_label"></label>
+    <input id="token" name="token" type="password" autocomplete="off">
+  </div>
+  <div class="field"><label class="check"><input type="checkbox" name="all"><span data-i18n="show_all"></span></label></div>
+  <button class="btn" type="submit" data-i18n="load"></button>
+</form>
+<div id="queue"></div>
+</div></main>
+<footer><div class="wrap"><p data-i18n="footer"></p></div></footer>
+</body>
+</html>

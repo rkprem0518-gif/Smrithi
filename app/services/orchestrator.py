@@ -135,7 +135,9 @@ async def create_session(
 
     if settings.demo_mode:
         fixture = demo_fixture if demo_fixture in FIXTURE_NAMES else "normal"
-        _touch(db, session, Status.CALLING)
+        fx = load_fixture(fixture)
+        # The simulated transcript was spoken with the fixture's word list and language.
+        _touch(db, session, Status.CALLING, word_form=fx["word_form"], language=fx["language"])
         asyncio.get_running_loop().create_task(simulate_demo_call(session.id, fixture, settings))
         return session, None
 

@@ -1,1 +1,53 @@
-<!doctype html><title>Smriti</title>
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Smriti</title>
+<meta name="description" content="Smriti: a 5-minute phone memory check in Hindi or English. Pilot, not a diagnosis.">
+<link rel="stylesheet" href="/styles.css">
+<script src="/app.js" defer></script>
+</head>
+<body data-page="home">
+<header class="top"><div class="wrap">
+  <a class="brand" href="/index.html"><span class="brand-mark" aria-hidden="true"></span><span data-i18n="brand">Smriti</span></a>
+  <div class="top-actions">
+    <button id="lang-toggle" class="btn secondary small lang-toggle" type="button" data-i18n="lang_toggle">हिन्दी</button>
+  </div>
+</div></header>
+<main><div class="wrap">
+<p id="demo-banner" class="notice small" data-i18n="demo_banner" hidden></p>
+
+<h1 data-i18n="home_title"></h1>
+<p class="lead" data-i18n="home_lead"></p>
+<p class="notice strong" data-i18n="not_diagnosis"></p>
+<p><a class="btn" href="/start.html" data-i18n="start_btn"></a></p>
+
+<section class="card">
+  <h2 data-i18n="how_title"></h2>
+  <ol class="steps">
+    <li><span data-i18n="how_1"></span></li>
+    <li><span data-i18n="how_2"></span></li>
+    <li><span data-i18n="how_3"></span></li>
+  </ol>
+</section>
+
+<section class="card">
+  <h2 data-i18n="demo_title"></h2>
+  <p class="muted" data-i18n="demo_lead"></p>
+  <div class="grid">
+    <a class="card" href="/report.html?id=demo-normal"><span class="badge NORMAL" data-i18n="demo_normal"></span></a>
+    <a class="card" href="/report.html?id=demo-uncertain"><span class="badge UNCERTAIN" data-i18n="demo_uncertain"></span></a>
+    <a class="card" href="/report.html?id=demo-refer"><span class="badge REFER" data-i18n="demo_refer"></span></a>
+    <a class="card" href="/report.html?id=demo-invalid-hearing"><span class="badge INVALID" data-i18n="demo_invalid"></span></a>
+  </div>
+</section>
+
+<section class="card">
+  <h2 data-i18n="fair_title"></h2>
+  <p data-i18n="fair_body"></p>
+</section>
+</div></main>
+<footer><div class="wrap"><p data-i18n="footer"></p></div></footer>
+</body>
+</html>
