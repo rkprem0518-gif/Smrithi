@@ -64,7 +64,7 @@ def score_session(segments: Segments, ctx: ScoringContext, cfg: ScoringConfig) -
         invalid.append("stopped_distress")
     if not hearing["passed"]:
         invalid.append("hearing_check_failed")
-    if "recall" not in segments.tasks or not recall["reached"]:
+    if "recall" not in segments.tasks or not (recall["reached"] or "close" in segments.tasks):
         invalid.append("ended_before_delayed_recall")
     if empty["fraction"] > float(cfg.raw["invalid"]["max_empty_answer_fraction"]):
         invalid.append("too_many_empty_answers")

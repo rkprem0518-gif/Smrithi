@@ -25,17 +25,21 @@ async def main() -> int:
     parser.add_argument("--dry-run", action="store_true", help="print the payload and exit")
     parser.add_argument("--update", action="store_true", help="update the existing agent (PUT)")
     parser.add_argument("--agent-id", default=None, help="agent to update (default: BOLNA_AGENT_ID)")
+    parser.add_argument("--language", choices=["hi", "kn"], default="hi",
+                        help="hi = Hindi/English agent (BOLNA_AGENT_ID); kn = Kannada agent (BOLNA_AGENT_ID_KN)")
     parser.add_argument("--with-keywords", action="store_true",
                         help="add the 30 list words as transcriber keywords (format unverified, see TODO)")
     args = parser.parse_args()
 
     settings = get_settings()
-    payload = build_agent_payload(settings, agent_template(), agent_prompt(), scoring_config(), args.with_keywords)
+    payload = build_agent_payload(settings, agent_template(), agent_prompt(), scoring_config(), args.with_keywords,
+                                  language=args.language)
+    env_key = "BOLNA_AGENT_ID_KN" if args.language == "kn" else "BOLNA_AGENT_ID"
 
     if args.dry_run:
         print(json.dumps(payload, ensure_ascii=False, indent=2))
         note = "" if settings.webhook_reachable else "  (PUBLIC_BASE_URL is not public https -> poller is used)"
-        print(f"\n# dry run: nothing was sent. webhook_url = {payload['agent_config']['webhook_url']!r}{note}",
+        print(f"\n# dry run: nothing was sent. webhook_url = {payload['agent_config'].get('webhook_url')!r}{note}",
               file=sys.stderr)
         return 0
 
@@ -45,7 +49,7 @@ async def main() -> int:
     try:
         async with BolnaClient.from_settings(settings) as client:
             if args.update:
-                agent_id = args.agent_id or settings.bolna_agent_id
+                agent_id = args.agent_id or settings.agent_id_for(args.language)
                 if not agent_id:
                     print("--update needs BOLNA_AGENT_ID in .env or --agent-id.", file=sys.stderr)
                     return 2
@@ -54,7 +58,7 @@ async def main() -> int:
             else:
                 agent_id = await client.create_agent(payload)
                 print(agent_id)
-                print(f"\nCreated. Add this line to .env:\nBOLNA_AGENT_ID={agent_id}", file=sys.stderr)
+                print(f"\nCreated. Add this line to .env:\n{env_key}={agent_id}", file=sys.stderr)
     except BolnaError as exc:
         print(f"Bolna error: {exc}", file=sys.stderr)
         return 1

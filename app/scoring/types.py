@@ -48,6 +48,7 @@ class FormWord:
     id: str
     hi: str
     en: str
+    kn: str = ""
 
 
 def _key_set(words: list[Any]) -> frozenset[str]:
@@ -82,9 +83,10 @@ class ScoringConfig:
         forms: dict[str, list[FormWord]] = {}
         form_lexicons: dict[str, Lexicon] = {}
         for form, entries in wordlists["forms"].items():
-            forms[form] = [FormWord(e["id"], e["hi"], e["en"]) for e in entries]
+            forms[form] = [FormWord(e["id"], e["hi"], e["en"], e.get("kn", "")) for e in entries]
             form_lexicons[form] = build_lexicon(
-                {e["id"]: [e["hi"], e["en"], *e.get("variants", [])] for e in entries}
+                {e["id"]: [e["hi"], e["en"], *([e["kn"]] if e.get("kn") else []), *e.get("variants", [])]
+                 for e in entries}
             )
         orient = scoring["orientation"]
         # Canonical id = the word's own key; the original spelling is kept as a variant so
@@ -99,7 +101,10 @@ class ScoringConfig:
             forms=forms,
             form_lexicons=form_lexicons,
             animal_lexicon=build_lexicon(animals["animals"]),
-            stopwords=stop_keys(wordlists.get("stopwords", []), wordlists.get("stopwords_devanagari", [])),
+            stopwords=stop_keys(
+                wordlists.get("stopwords", []),
+                wordlists.get("stopwords_devanagari", []) + wordlists.get("stopwords_kannada", []),
+            ),
             day_lexicon=build_lexicon({str(k): v for k, v in orient["days"].items()}),
             month_lexicon=build_lexicon({str(k): v for k, v in orient["months"].items()}),
             hindu_month_lexicon=build_lexicon(hindu_all),

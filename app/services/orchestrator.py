@@ -69,7 +69,8 @@ def next_word_form(db: DBSession) -> str:
 
 def word_list_for(form: str, language: str) -> str:
     words = scoring_config().forms[form]
-    return ", ".join(w.en if language == "en" else w.hi for w in words)
+    pick = {"en": lambda w: w.en, "kn": lambda w: w.kn or w.en}.get(language, lambda w: w.hi)
+    return ", ".join(pick(w) for w in words)
 
 
 def build_user_data(session: Session) -> dict[str, Any]:
@@ -166,16 +167,20 @@ async def create_session(
         return session, None
 
     settings.require_live()
+    agent_id = settings.agent_id_for(language)
+    if not agent_id:
+        _touch(db, session, Status.FAILED, error="No Bolna agent is configured for this language.")
+        raise SessionError("Kannada calls are not set up yet (BOLNA_AGENT_ID_KN is missing).", 503)
     async with BolnaClient.from_settings(settings) as client:
         try:
             if mode == "web":
-                web = await client.create_web_call_session(settings.bolna_agent_id, build_user_data(session))
+                web = await client.create_web_call_session(agent_id, build_user_data(session))
                 # TODO(bolna): confirm the web-call session's run_id is the execution id
                 # used by GET /executions/{id}. If not, the webhook still links it via user_data.
                 _touch(db, session, Status.CALLING, execution_id=web.get("run_id"))
                 return session, web
             execution_id = await client.make_call(
-                settings.bolna_agent_id, phone or "", build_user_data(session),
+                agent_id, phone or "", build_user_data(session),
                 settings.bolna_from_number or None,
             )
         except BolnaError as exc:
@@ -318,6 +323,7 @@ def _parse_time(value: Any) -> datetime | None:
 
 async def apply_execution(db: DBSession, session: Session, execution: dict[str, Any], settings: Settings) -> Session:
     """Move the session along the state machine from a fresh GET /executions/{id} body."""
+    db.refresh(session)  # the poller may hold a stale copy while the webhook already scored it
     if session.status in Status.FINAL or session.status == Status.SCORING or session.deleted_at:
         return session
     status = str(execution.get("status") or "").lower()

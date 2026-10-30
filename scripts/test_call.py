@@ -28,7 +28,7 @@ from app.settings import LiveConfigError, get_settings
 async def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("phone", help="E.164 number, e.g. +919876543210")
-    parser.add_argument("--language", choices=["hi", "en"], default="hi")
+    parser.add_argument("--language", choices=["hi", "en", "kn"], default="hi")
     parser.add_argument("--schooling", type=int, default=None)
     parser.add_argument("--timeout", type=float, default=15, help="minutes to wait")
     args = parser.parse_args()

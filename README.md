@@ -1,6 +1,6 @@
 # Smriti: a 5-minute phone memory check in Indian languages
 
-**Smriti calls an older person, runs a short, friendly memory check by voice in Hindi or English, and gives the family a clear report: Normal / Uncertain - retest / Refer to clinician / Invalid call. It never diagnoses. Every uncertain, refer or invalid result goes to a human reviewer.**
+**Smriti calls an older person, runs a short, friendly memory check by voice in Hindi, Kannada or English, and gives the family a clear report: Normal / Uncertain - retest / Refer to clinician / Invalid call. It never diagnoses. Every uncertain, refer or invalid result goes to a human reviewer.**
 
 Built on [Bolna](https://bolna.ai) for the Bolna Voice AI Buildathon 2026. Inspired by the 10/66 Dementia Research Group battery, which was designed to be fair to people with little or no schooling.
 
@@ -32,7 +32,7 @@ uvicorn app.main:app --reload
 
 Open <http://localhost:8000>:
 
-- **Sample reports:** `/report.html?id=demo-normal`, `demo-uncertain`, `demo-refer`, `demo-invalid-hearing`
+- **Sample reports:** `/report.html?id=demo-normal`, `demo-uncertain`, `demo-refer`, `demo-invalid-hearing`, `demo-kannada` (a full Kannada call)
 - **Simulate a call:** Start a memory check → tick consent → pick a demo conversation → watch the Live page → Report
 - **Reviewer queue:** `/review.html`, token `change-me` (from `.env.example`)
 - **API docs:** `/docs`
@@ -98,7 +98,7 @@ More detail: [docs/architecture.md](docs/architecture.md) (flows and state machi
 
 **INVALID** if: hearing check failed · call ended before delayed recall · > 30% of the 14 expected answers empty or unintelligible · someone was helping · the call was stopped for distress.
 
-Scoring is **deterministic and explainable**: Devanagari → Latin transliteration, phonetic keys, rapidfuzz ratio ≥ 85 against the word list (Devanagari, Latin spellings and English all accepted). No LLM decides any score. Speech features (filler rate, words per answer) are shown as *experimental* and never affect the outcome. Full spec with worked examples: [docs/scoring_spec.md](docs/scoring_spec.md).
+Scoring is **deterministic and explainable**: Devanagari/Kannada → Latin transliteration, phonetic keys, exact match for short words and rapidfuzz ratio ≥ 85 (same first letter) for words of 5+ letters; Indic-script answers only match spellings from the same script; plurals (किताबें, ನಾಯಿಗಳು, dogs) are recognised. No LLM decides any score. Speech features (filler rate, words per answer) are shown as *experimental* and never affect the outcome. Full spec with worked examples: [docs/scoring_spec.md](docs/scoring_spec.md).
 
 ## Bolna features used
 
@@ -120,6 +120,7 @@ Scoring is **deterministic and explainable**: Devanagari → Latin transliterati
 3. Create it: `python scripts/create_agent.py` → copy the printed id into `.env` as `BOLNA_AGENT_ID`.
 4. `python scripts/check_live.py` → prints wallet balance, concurrency, confirms the agent exists, and says **READY** or what is missing.
 5. Set `DEMO_MODE=0`. Call your own phone end to end: `python scripts/test_call.py +91XXXXXXXXXX`
+   - **Kannada:** `python scripts/create_agent.py --language kn` → put the id in `BOLNA_AGENT_ID_KN`, then `python scripts/test_call.py +91XXXXXXXXXX --language kn`. Kannada needs its own agent because the STT/TTS language is fixed per agent (Sarvam `kn`).
 6. For webhooks, `PUBLIC_BASE_URL` must be a public https URL (deploy, or `cloudflared tunnel --url http://localhost:8000`), then `python scripts/create_agent.py --update`. Without it the poller fetches results every 10 s.
 
 In live mode the app refuses to start without `BOLNA_API_KEY` and `BOLNA_AGENT_ID`, or with the example `change-me` secrets, with a message saying what to set. Generate secrets with `python -c "import secrets; print(secrets.token_urlsafe(24))"`.
@@ -145,6 +146,7 @@ Everything below is implemented and tested against mocks; it is only waiting on 
 | Is `telephony_data.recording_url` fetchable by a third party (Deepgram) without auth? | `asr_fallback.py` | fluency counted over the whole segment |
 | Do English calls sound right with the Sarvam `hi` STT + Bulbul voice, or do we need a second agent? | `config/agent.json` | Hinglish is the main path |
 | Webhook retries / signing (not documented) | `api/webhook.py` | token in the URL + always re-fetch + poller |
+| Does Sarvam Saaras v4 + Bulbul v3 voice `suhani` work well with `language: kn`? | `config/agent.json` → `language_variants.kn` | pick another Bulbul voice |
 | `gpt-4.1-mini` is listed as previous-generation on Bolna's OpenAI page | `config/agent.json` | switch to `gpt-5.4-mini` (requires `temperature: 1`) if creation fails |
 | Is 8 minutes (`MAX_CALL_MINUTES`) enough for slower speakers? | `.env` | raise to 10 after the first real calls |
 
@@ -183,7 +185,7 @@ docs/                architecture, scoring spec, ethics, pilot log, deck notes
 - Speech recognition of older voices, regional accents and noisy lines will cause misses; fuzzy matching helps but cannot fix everything. INVALID exists to catch bad calls, and humans review the rest.
 - The animal-naming minute is not timed precisely: Bolna's transcript has no per-turn timestamps, so we count the whole segment (`experimental_timing: true`) unless the optional Deepgram pass over the recording is enabled.
 - The town/village answer is accepted if given; it cannot be verified automatically.
-- Only Hindi and English for now.
+- Hindi, Kannada and English. The web UI itself is in English and Hindi; Kannada reports show Kannada word lists with English labels.
 
 ## Roadmap
 

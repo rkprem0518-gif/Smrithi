@@ -16,7 +16,7 @@ from indic_transliteration import sanscript
 from indic_transliteration.sanscript import transliterate
 
 # Devanagari block minus the dandas (। ॥), plus zero-width (non-)joiners used inside words.
-_WORD = re.compile(r"[ऀ-ॣ०-ॿ‌‍]+|[A-Za-z0-9]+")
+_WORD = re.compile(r"[ऀ-ॣ०-ॿ‌‍]+|[ಀ-೿]+|[A-Za-z0-9]+")
 _NON_ALNUM = re.compile(r"[^a-z0-9]+")
 _VIRAMA = "्"
 _NUKTA = "़"
@@ -51,6 +51,20 @@ def deva_word_to_latin(word: str) -> str:
     return latin.lower()
 
 
+@lru_cache(maxsize=8192)
+def kannada_word_to_latin(word: str) -> str:
+    """Kannada keeps its final vowel (ಮರ = mara), so no schwa handling; ITRANS writes short e/o
+    as è/ò, which are folded to plain e/o."""
+    latin = transliterate(word.replace("\u200c", "").replace("\u200d", ""), sanscript.KANNADA, sanscript.ITRANS)
+    latin = latin.replace(".", "").replace("~", "").replace("^", "")
+    latin = "".join(ch for ch in unicodedata.normalize("NFKD", latin) if not unicodedata.combining(ch))
+    return latin.lower()
+
+
+def _is_kannada(ch: str) -> bool:
+    return "\u0c80" <= ch <= "\u0cff"
+
+
 def phonetic_key(token: str) -> str:
     """Collapse spelling variation: ee->i, oo->u, w->v, z->j, doubled letters -> single."""
     key = token.lower()
@@ -65,8 +79,9 @@ def phonetic_key(token: str) -> str:
 class Token:
     raw: str  # lowercase Latin surface form (used for digits and display)
     key: str  # phonetic key (used for matching)
-    deva: bool = False  # came from Devanagari script
-    orig: str = ""  # the Devanagari word as written (Devanagari tokens only)
+    deva: bool = False  # came from an Indic script (Devanagari or Kannada), not Latin
+    orig: str = ""  # the Indic word as written (Indic tokens only)
+    script: str = "latin"  # latin | deva | knda
 
     @property
     def stop_key(self) -> str:
@@ -80,9 +95,12 @@ def tokenize(text: str) -> list[Token]:
     out: list[Token] = []
     for m in _WORD.finditer(unicodedata.normalize("NFC", text or "")):
         word = m.group(0)
-        if _is_devanagari(word[0]) or word[0] in "‌‍":
+        if _is_kannada(word[0]):
+            for part in _NON_ALNUM.sub(" ", kannada_word_to_latin(word)).split():
+                out.append(Token(part, phonetic_key(part), True, word, "knda"))
+        elif _is_devanagari(word[0]) or word[0] in "‌‍":
             for part in _NON_ALNUM.sub(" ", deva_word_to_latin(word)).split():
-                out.append(Token(part, phonetic_key(part), True, word))
+                out.append(Token(part, phonetic_key(part), True, word, "deva"))
         else:
             low = word.lower()
             out.append(Token(low, phonetic_key(low), False))

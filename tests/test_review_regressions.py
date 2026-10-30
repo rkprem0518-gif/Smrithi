@@ -12,7 +12,7 @@ from app.services.segmenter import parse_bolna_transcript, segment
 from tests.conftest import agent, user
 
 READ_A = "घर... पानी... पेड़... रोटी... किताब... चाबी... दरवाज़ा... चाँद... कुर्सी... फूल।"
-READ_C = "दीया... रस्सी... छाता... पत्ता... बाज़ार... कपड़ा... धूप... चम्मच... बोतल... मेज़।"
+READ_C = "डिब्बा... रस्सी... छाता... पत्ता... बाज़ार... कपड़ा... धूप... चम्मच... बोतल... मेज़।"
 
 
 def words(text, lexicon, cfg):
@@ -26,8 +26,8 @@ def words(text, lexicon, cfg):
         ("A", "बस चार ही याद हैं... घर, पानी, फूल।", ["ghar", "paani", "phool"]),  # चार != chair
         ("A", "दूर से आवाज़ आ रही है, हर बार", []),  # दूर != door, हर != ghar
         ("B", "घर", []),  # घर != ghadi
-        ("C", "दीया, रस्सी... और याद नहीं आता।", ["diya", "rassi"]),  # आता != patta
-        ("C", "रस्सी, छाता... बस इतना ही, बता दिया।", ["rassi", "chhata"]),  # दिया (gave) != दीया (lamp)
+        ("C", "डिब्बा, रस्सी... और याद नहीं आता।", ["dibba", "rassi"]),  # आता != patta
+        ("C", "रस्सी, छाता... बस इतना ही, बता दिया।", ["rassi", "chhata"]),  # दिया (gave) != डिब्बा (lamp)
         ("A", "three", []),  # three != tree
     ],
 )
@@ -127,7 +127,7 @@ def test_place_dont_know_gets_no_point(cfg, place) -> None:
 
 # B8: a repeat request does not shift the trials
 def test_repeat_request_does_not_shift_trials(cfg) -> None:
-    turns = [agent(READ_C), user("फिर से बोलिए, सुनाई नहीं दिया"), agent(READ_C), user("दीया छाता"),
+    turns = [agent(READ_C), user("फिर से बोलिए, सुनाई नहीं दिया"), agent(READ_C), user("डिब्बा छाता"),
              agent(READ_C), user("छाता रस्सी बोतल"), agent(READ_C), user("छाता रस्सी बोतल मेज़")]
     assert tasks.score_learning(turns, "C", cfg)["trial_scores"] == [2, 3, 4]
 

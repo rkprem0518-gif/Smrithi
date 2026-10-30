@@ -10,7 +10,7 @@ from pydantic import BaseModel, Field
 
 class SessionCreate(BaseModel):
     consent: bool
-    language: Literal["hi", "en"] = "hi"
+    language: Literal["hi", "en", "kn"] = "hi"
     schooling_years: int | None = Field(default=None, ge=0, le=30)
     mode: Literal["phone", "web"] = "phone"
     phone: str | None = Field(default=None, max_length=20)
@@ -45,7 +45,7 @@ class TurnIn(BaseModel):
 
 class DemoScoreRequest(BaseModel):
     transcript: list[TurnIn] | str = Field(description="Turns, or a Bolna transcript string")
-    language: Literal["hi", "en"] = "hi"
+    language: Literal["hi", "en", "kn"] = "hi"
     schooling_years: int | None = Field(default=None, ge=0, le=30)
     word_form: Literal["A", "B", "C"] = "A"
     call_time: datetime | None = Field(default=None, description="Defaults to now (IST used for orientation)")

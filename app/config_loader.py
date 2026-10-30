@@ -57,4 +57,4 @@ def load_fixture(name: str) -> dict[str, Any]:
         return json.load(fh)
 
 
-FIXTURE_NAMES = ("normal", "uncertain", "refer", "invalid_hearing")
+FIXTURE_NAMES = ("normal", "uncertain", "refer", "invalid_hearing", "kannada")

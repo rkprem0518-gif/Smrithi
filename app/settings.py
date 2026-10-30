@@ -28,6 +28,7 @@ class Settings(BaseSettings):
     bolna_api_base: str = "https://api.bolna.ai"
     bolna_api_key: str = ""
     bolna_agent_id: str = ""
+    bolna_agent_id_kn: str = ""  # Kannada agent (create_agent.py --language kn)
     bolna_from_number: str = ""
     bolna_webhook_token: str = "change-me"
 
@@ -73,6 +74,10 @@ class Settings(BaseSettings):
         """Bolna can only reach a public https URL."""
         url = self.public_base_url.lower()
         return url.startswith("https://") and "localhost" not in url and "127.0.0.1" not in url
+
+    def agent_id_for(self, language: str) -> str:
+        """Hindi and English share one agent (Hinglish STT); Kannada needs its own STT/TTS language."""
+        return self.bolna_agent_id_kn if language == "kn" else self.bolna_agent_id
 
     def missing_live_keys(self) -> list[str]:
         missing = []
