@@ -144,7 +144,10 @@ def test_nothing_remembered_still_counts_as_a_trial(cfg) -> None:
      ("Task 6", "recall")],
 )
 def test_marker_variants(phrase, task) -> None:
-    seg = segment([agent("पहला काम"), agent(phrase), user("x")], markers())
+    from app.scoring.types import TASKS
+
+    earlier = [agent(markers()[name][0]) for name in TASKS[: TASKS.index(task)]]
+    seg = segment([*earlier, agent(phrase), user("x")], markers())
     assert task in seg.tasks
 
 
