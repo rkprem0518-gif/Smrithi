@@ -122,12 +122,17 @@ def test_kannada_paravagilla_is_yes(cfg) -> None:
     assert tasks.parse_yes_no("ಪರವಾಗಿಲ್ಲ", cfg) is True
 
 
-def test_no_english_online_check_and_welcome_asks_a_question() -> None:
+def test_online_check_speaks_the_call_language_and_welcome_asks_a_question() -> None:
+    messages = set()
     for lang in ("hi", "kn", "en"):
         payload = build_agent_payload(Settings(_env_file=None), agent_template(), agent_prompt(), language=lang)
-        task = payload["agent_config"]["tasks"][0]
-        assert task["task_config"]["check_if_user_online"] is False
+        tc = payload["agent_config"]["tasks"][0]["task_config"]
+        assert tc["check_if_user_online"] is True
+        assert "still there" not in tc["check_user_online_message"]
+        assert tc["hangup_after_silence"] >= 40
+        messages.add(tc["check_user_online_message"])
         assert payload["agent_config"]["agent_welcome_message"].rstrip().endswith("?")
+    assert len(messages) == 3  # one per language
 
 
 def test_english_agent_variant_and_fallback() -> None:

@@ -110,7 +110,7 @@ Scoring is **deterministic and explainable**: Devanagari/Kannada → Latin trans
 | **Webhooks** (`agent_config.webhook_url`, token-checked) + a polling fallback | [`app/api/webhook.py`](app/api/webhook.py), [`app/services/poller.py`](app/services/poller.py) |
 | Account info (`GET /user/me`: wallet, concurrency) | [`scripts/check_live.py`](scripts/check_live.py) |
 | Indian-language voice stack: **Sarvam Saaras v4** STT and **Sarvam Bulbul v3** TTS in `hi`, `kn` and `en` (one agent per language), GPT-4.1-mini LLM, Plivo telephony | [`config/agent.json`](config/agent.json) |
-| Call controls: `hangup_after_silence` raised to 25 s for the 1-minute animal task, `call_terminate` = `MAX_CALL_MINUTES`, `check_if_user_online` off (its built-in prompt is English-only) with a welcome message that asks a question in the call's language | [`app/services/agent_builder.py`](app/services/agent_builder.py) |
+| Call controls: `hangup_after_silence` raised to 25 s for the 1-minute animal task, `call_terminate` = `MAX_CALL_MINUTES`, `check_user_online_message` in the call's language (Bolna's default is English), and a welcome message that asks a question | [`app/services/agent_builder.py`](app/services/agent_builder.py) |
 | Web Call SDK (`@bolna/web-call`, backend-minted `POST /web-call/session`) - optional | [`app/web/webcall.js`](app/web/webcall.js) |
 
 ## Live setup (when you have Bolna credits)
@@ -137,7 +137,8 @@ What the real transcript taught us, and what we changed:
 
 | Seen on the live call | Fix |
 |---|---|
-| Bolna's "are you still there?" prompt fired in **English** on a Hindi call | `check_if_user_online` off; every welcome message now ends with a question in the call's language |
+| Bolna's "are you still there?" prompt fired in **English** on a Hindi call | `check_user_online_message` set per language ("क्या आप मुझे सुन पा रहे हैं?", "ನನ್ನ ಮಾತು ಕೇಳಿಸುತ್ತಿದೆಯಾ?", "Can you hear me?"), and every welcome message ends with a question |
+| The first Kannada call hung up after 25 s of "silence": no transcript had arrived yet (the first transcript took ~26 s on the Hindi call) | silence timeout raised to 40 s; the localized online check re-prompts at 12 s instead of letting the call drop |
 | "सेकंड ईयर में पढ़ रहा हूं" (2nd year of college) was read as 2 years of school | "<ordinal> year" now means college: 12 + n years (higher schooling band) |
 | "Hippo" was transcribed as हैप्पी and not counted | added हिप्पो / हैप्पी to the animal lexicon |
 | English answers on the Hindi agent were transcribed in Devanagari ("यस, आई एम देयर") | a dedicated **English agent** (English STT and voice) |

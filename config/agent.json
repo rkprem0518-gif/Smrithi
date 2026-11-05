@@ -1,5 +1,5 @@
 {
-  "_comment": "Smriti Bolna agent template. scripts/create_agent.py sends agent_config + the prompt in prompts/smriti_agent.md to POST /v2/agent (or PUT /v2/agent/{id} with --update). It overrides webhook_url and task_config.call_terminate from .env. smriti_markers is NOT sent to Bolna: the segmenter uses it to split the transcript into tasks. language_variants: overrides applied by create_agent.py --language kn|en (one agent per STT/TTS language). check_if_user_online is off: Bolna's built-in prompt is English-only ('are you still there'), and every welcome message ends with a question so the person answers straight away. Provider/model names verified against bolna.ai/docs on 2026-10-30.",
+  "_comment": "Smriti Bolna agent template. scripts/create_agent.py sends agent_config + the prompt in prompts/smriti_agent.md to POST /v2/agent (or PUT /v2/agent/{id} with --update). It overrides webhook_url and task_config.call_terminate from .env. smriti_markers is NOT sent to Bolna: the segmenter uses it to split the transcript into tasks. language_variants: overrides applied by create_agent.py --language kn|en (one agent per STT/TTS language). check_user_online_message replaces Bolna's English default ('Hey, are you still there') with the call's language; every welcome message also ends with a question so the person answers straight away. hangup_after_silence is 40 s: on the first live calls the first transcript took up to ~26 s to arrive. Provider/model names verified against bolna.ai/docs on 2026-10-30.",
   "smriti_markers": {
     "hearing": [
       "पहला काम",
@@ -143,11 +143,13 @@
           }
         },
         "task_config": {
-          "hangup_after_silence": 25,
+          "hangup_after_silence": 40,
           "call_terminate": 480,
           "backchanneling": false,
           "number_of_words_for_interruption": 3,
-          "check_if_user_online": false,
+          "check_if_user_online": true,
+          "trigger_user_online_message_after": 12,
+          "check_user_online_message": "क्या आप मुझे सुन पा रहे हैं?",
           "call_hangup_message": "धन्यवाद, नमस्ते।"
         }
       }
@@ -159,14 +161,16 @@
       "agent_welcome_message": "ನಮಸ್ಕಾರ! ನಾನು ಸ್ಮೃತಿ, ನಿಮ್ಮ ಮನೆಯವರ ಕಡೆಯಿಂದ ಕರೆ ಮಾಡುತ್ತಿದ್ದೇನೆ. ನನ್ನ ಮಾತು ಸರಿಯಾಗಿ ಕೇಳಿಸುತ್ತಿದೆಯಾ?",
       "transcriber_language": "kn",
       "synthesizer_language": "kn",
-      "call_hangup_message": "ಧನ್ಯವಾದಗಳು, ನಮಸ್ಕಾರ."
+      "call_hangup_message": "ಧನ್ಯವಾದಗಳು, ನಮಸ್ಕಾರ.",
+      "check_user_online_message": "ನನ್ನ ಮಾತು ಕೇಳಿಸುತ್ತಿದೆಯಾ?"
     },
     "en": {
       "agent_name_suffix": " - English",
       "agent_welcome_message": "Hello! This is Smriti, calling on behalf of your family. Can you hear me clearly?",
       "transcriber_language": "en",
       "synthesizer_language": "en",
-      "call_hangup_message": "Thank you, goodbye."
+      "call_hangup_message": "Thank you, goodbye.",
+      "check_user_online_message": "Can you hear me?"
     }
   }
 }
