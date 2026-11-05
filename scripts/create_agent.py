@@ -3,6 +3,8 @@
     python scripts/create_agent.py --dry-run      # print the exact JSON payload; no API call, no key needed
     python scripts/create_agent.py                # POST /v2/agent -> prints agent_id
     python scripts/create_agent.py --update       # PUT /v2/agent/{BOLNA_AGENT_ID}
+    python scripts/create_agent.py --kind checkin # the weekly check-in agent  -> BOLNA_AGENT_ID_CHECKIN
+    python scripts/create_agent.py --kind family  # the call to the family     -> BOLNA_AGENT_ID_FAMILY
 """
 
 from __future__ import annotations
@@ -30,14 +32,20 @@ async def main() -> int:
                              "(BOLNA_AGENT_ID; set BOLNA_MULTILINGUAL=1)")
     parser.add_argument("--language", choices=["hi", "kn", "en"], default="hi",
                         help="hi = BOLNA_AGENT_ID, kn = BOLNA_AGENT_ID_KN, en = BOLNA_AGENT_ID_EN")
+    parser.add_argument("--kind", choices=["memory", "checkin", "family"], default="memory",
+                        help="memory = the memory check (default); checkin = weekly chat; family = call to the family")
     parser.add_argument("--with-keywords", action="store_true",
                         help="add the 30 list words as transcriber keywords (format unverified, see TODO)")
     args = parser.parse_args()
 
     settings = get_settings()
-    payload = build_agent_payload(settings, agent_template(), agent_prompt(), scoring_config(), args.with_keywords,
-                                  language=args.language, multilingual=args.multilingual)
-    env_key = {"kn": "BOLNA_AGENT_ID_KN", "en": "BOLNA_AGENT_ID_EN"}.get(args.language, "BOLNA_AGENT_ID")
+    payload = build_agent_payload(settings, agent_template(), agent_prompt(args.kind), scoring_config(),
+                                  args.with_keywords, language=args.language, multilingual=args.multilingual,
+                                  kind=args.kind)
+    if args.kind != "memory":
+        env_key = f"BOLNA_AGENT_ID_{args.kind.upper()}"
+    else:
+        env_key = {"kn": "BOLNA_AGENT_ID_KN", "en": "BOLNA_AGENT_ID_EN"}.get(args.language, "BOLNA_AGENT_ID")
 
     if args.dry_run:
         print(json.dumps(payload, ensure_ascii=False, indent=2))

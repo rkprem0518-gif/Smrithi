@@ -57,8 +57,9 @@ def markers() -> dict[str, list[str]]:
     return agent_template()["smriti_markers"]
 
 
-def agent_prompt() -> str:
-    return (PROMPTS_DIR / "smriti_agent.md").read_text(encoding="utf-8")
+def agent_prompt(kind: str = "memory") -> str:
+    name = "smriti_agent.md" if kind == "memory" else agent_template()["kinds"][kind]["prompt_file"]
+    return (PROMPTS_DIR / name).read_text(encoding="utf-8")
 
 
 def load_fixture(name: str) -> dict[str, Any]:

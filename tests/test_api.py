@@ -40,6 +40,7 @@ def _make_app(tmp_path, monkeypatch, **env):
         "BOLNA_RETRY_BACKOFF_SECONDS": "0",
         "POLL_INTERVAL_SECONDS": "3600",
         "HELPLINE_TEXT": "",
+        "SEED_FAMILY_DEMO": "0",
     }
     for k, v in {**defaults, **env}.items():
         monkeypatch.setenv(k, v)

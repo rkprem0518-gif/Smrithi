@@ -58,6 +58,21 @@ class Session(SQLModel, table=True):
     is_demo: bool = False
     error: str | None = None
     deleted_at: datetime | None = None
+    # Call ops data copied from the Bolna execution (all nullable; added to old DBs by init_db).
+    total_cost: float | None = None
+    cost_breakdown: dict[str, Any] | None = Field(default=None, sa_column=Column(JSON))
+    latency_data: dict[str, Any] | None = Field(default=None, sa_column=Column(JSON))
+    time_to_first_audio: float | None = None  # from latency_data, unit as Bolna reports it
+    call_duration: float | None = None  # seconds of conversation
+    recording_url: str | None = None
+    hangup_reason: str | None = None
+    hangup_by: str | None = None
+    ops_simulated: bool | None = None  # True = DEMO_MODE made these numbers up
+    ops_updated_at: datetime | None = None
+    # Family product (app/family): None or "memory" = the memory check; "checkin" = weekly chat;
+    # "family" = Smriti calling the son/daughter after the care desk approved a concern.
+    kind: str | None = Field(default=None, index=True)
+    parent_id: str | None = Field(default=None, index=True)
 
 
 class CallArtifact(SQLModel, table=True):

@@ -13,9 +13,11 @@ from fastapi import FastAPI
 from fastapi.responses import RedirectResponse
 from fastapi.staticfiles import StaticFiles
 
-from app.api import demo, health, review, sessions, webhook
-from app.db import init_db
+from app.api import demo, events, family, health, ops, review, sessions, webhook
+from app.db import init_db, new_db
+from app.family import seed as family_seed
 from app.logs import log
+from app.services.ops import reset_wallet_cache
 from app.services.orchestrator import seed_demo_sessions
 from app.services.poller import run_poller
 from app.settings import get_settings
@@ -41,6 +43,10 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     if not settings.demo_mode:
         settings.require_live()  # fail fast with a clear message
     init_db()
+    reset_wallet_cache()
+    if settings.seed_family_demo:
+        with new_db() as db:
+            family_seed.seed(db, settings)  # no-op once the demo parent exists
     stop = asyncio.Event()
     poller: asyncio.Task | None = None
     if settings.demo_mode:
@@ -60,8 +66,9 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
 
 def create_app() -> FastAPI:
     app = FastAPI(title="Smriti", version="0.1.0", lifespan=lifespan)
-    for module in (health, sessions, webhook, review, demo):
+    for module in (health, sessions, webhook, review, demo, events, ops, family):
         app.include_router(module.router)
+    app.include_router(family.care)
 
     @app.get("/", include_in_schema=False)
     def index() -> RedirectResponse:

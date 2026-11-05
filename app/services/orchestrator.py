@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 import hashlib
 import hmac
+import math
 import re
 from datetime import UTC, datetime, timedelta
 from typing import Any
@@ -20,7 +21,7 @@ from app.models import CallArtifact, Review, ReviewStatus, Score, Session, Statu
 from app.scoring.engine import score_session
 from app.scoring.outcome import INVALID, needs_review
 from app.scoring.types import ScoringContext, Turn
-from app.services import asr_fallback
+from app.services import asr_fallback, events
 from app.services.bolna_client import BolnaClient, BolnaError
 from app.services.report import build_report
 from app.services.segmenter import parse_bolna_transcript, segment, turns_from_json
@@ -91,6 +92,7 @@ def build_user_data(session: Session, multilingual: bool = False) -> dict[str, A
 
 
 def _touch(db: DBSession, session: Session, status: str | None = None, **fields: Any) -> None:
+    previous = session.status
     if status:
         session.status = status
     for k, v in fields.items():
@@ -99,6 +101,8 @@ def _touch(db: DBSession, session: Session, status: str | None = None, **fields:
     db.add(session)
     db.commit()
     db.refresh(session)
+    if session.status != previous:
+        events.publish_status(session, previous)
 
 
 def _count_since(db: DBSession, *where: Any) -> int:
@@ -164,6 +168,7 @@ async def create_session(
     db.commit()
     db.refresh(session)
     log("session_created", session_id=session.id, mode=mode, language=language, demo=settings.demo_mode)
+    events.publish_status(session)
 
     if settings.demo_mode:
         fixture = demo_fixture if demo_fixture in FIXTURE_NAMES else "normal"
@@ -230,6 +235,7 @@ def score_and_save(
 
 def claim_for_scoring(db: DBSession, session: Session) -> bool:
     """Atomically move an open session to `scoring`. Exactly one caller wins."""
+    previous = session.status
     result = db.execute(
         update(Session)
         .where(Session.id == session.id, Session.status.in_(_CLAIMABLE), Session.deleted_at.is_(None))  # type: ignore[attr-defined,union-attr]
@@ -237,7 +243,10 @@ def claim_for_scoring(db: DBSession, session: Session) -> bool:
     )
     db.commit()
     db.refresh(session)
-    return result.rowcount == 1
+    won = result.rowcount == 1
+    if won:
+        events.publish_status(session, previous)
+    return won
 
 
 def _score_claimed(
@@ -329,9 +338,68 @@ def _parse_time(value: Any) -> datetime | None:
     return dt if dt.tzinfo else dt.replace(tzinfo=UTC)
 
 
+def _num(value: Any) -> float | None:
+    if value is None or isinstance(value, bool):
+        return None
+    try:
+        number = float(value)  # Bolna sends some numbers as strings ("42")
+    except (TypeError, ValueError):
+        return None
+    return number if math.isfinite(number) else None
+
+
+def extract_call_ops(execution: dict[str, Any]) -> dict[str, Any]:
+    """Cost, latency, duration and hang-up details from a Bolna execution, keeping only what is present.
+
+    TODO(bolna): units are stored exactly as Bolna reports them (total_cost / cost_breakdown are
+    believed to be in cents (USD); latency_data units unverified)."""
+    tel = execution.get("telephony_data")
+    tel = tel if isinstance(tel, dict) else {}
+    latency = execution.get("latency_data")
+    latency = latency if isinstance(latency, dict) else None
+    breakdown = execution.get("cost_breakdown")
+    ttfa = (latency or {}).get("time_to_first_audio", execution.get("time_to_first_audio"))
+    duration = next((d for d in (_num(execution.get("conversation_duration")),
+                                 _num(execution.get("conversation_time")),
+                                 _num(tel.get("duration"))) if d is not None), None)
+    ops: dict[str, Any] = {
+        "total_cost": _num(execution.get("total_cost")),
+        "cost_breakdown": breakdown if isinstance(breakdown, dict) and breakdown else None,
+        "latency_data": latency or None,
+        "time_to_first_audio": _num(ttfa),
+        "call_duration": duration,
+        "recording_url": tel.get("recording_url") or None,
+        "hangup_reason": tel.get("hangup_reason") or execution.get("hangup_reason") or None,
+        "hangup_by": tel.get("hangup_by") or execution.get("hangup_by") or None,
+    }
+    for key in ("recording_url", "hangup_reason", "hangup_by"):
+        if ops[key] is not None:
+            ops[key] = str(ops[key])
+    return {k: v for k, v in ops.items() if v is not None}
+
+
+def store_call_ops(db: DBSession, session: Session, ops: dict[str, Any], *, simulated: bool = False) -> bool:
+    """Write the ops columns only (never `status`), so this cannot race the scoring claim.
+    Returns True when something changed; publishes a `session_ops` event then."""
+    changed = {k: v for k, v in ops.items() if getattr(session, k) != v}
+    if not changed or session.deleted_at:
+        return False
+    db.execute(
+        update(Session).where(Session.id == session.id)
+        .values(**changed, ops_simulated=simulated, ops_updated_at=utcnow())
+    )
+    db.commit()
+    db.refresh(session)
+    events.publish_ops(session)
+    return True
+
+
 async def apply_execution(db: DBSession, session: Session, execution: dict[str, Any], settings: Settings) -> Session:
     """Move the session along the state machine from a fresh GET /executions/{id} body."""
     db.refresh(session)  # the poller may hold a stale copy while the webhook already scored it
+    if not session.deleted_at:
+        # Cost and duration can arrive after the call is already scored, so store them first.
+        store_call_ops(db, session, extract_call_ops(execution))
     if session.status in Status.FINAL or session.status == Status.SCORING or session.deleted_at:
         return session
     status = str(execution.get("status") or "").lower()
@@ -352,6 +420,11 @@ async def apply_execution(db: DBSession, session: Session, execution: dict[str, 
 
     turns = parse_bolna_transcript(execution.get("transcript"))
     recording_url = (execution.get("telephony_data") or {}).get("recording_url")
+    if session.kind in ("checkin", "family"):
+        from app.family.service import finish_call  # the family product: flags instead of the memory score
+
+        return finish_call(db, session, turns, recording_url=recording_url,
+                           execution_redacted=redact_execution(execution))
     call_time = _parse_time(execution.get("created_at")) or session.created_at.replace(tzinfo=UTC)
     cfg = scoring_config()
     stamps = await asr_fallback.fluency_timestamps(
@@ -387,6 +460,7 @@ def delete_session_data(db: DBSession, session: Session) -> None:
     session.phone_hash = None
     session.phone_last4 = None
     session.ip_hash = None
+    session.recording_url = None  # cost/duration stay: they hold nothing personal
     session.deleted_at = utcnow()
     _touch(db, session)
     log("session_deleted", session_id=session.id)
@@ -439,6 +513,23 @@ async def simulate_demo_call(session_id: str, fixture: str, settings: Settings) 
         session = db.get(Session, session_id)
         if not session or session.deleted_at:
             return
+        # Clearly marked made-up numbers, so the ops view can be tried offline.
+        store_call_ops(db, session, simulated_call_ops(fx), simulated=True)
         # Fixture answers (day, month, time) refer to the fixture's own call time.
         score_and_save(db, session, turns_from_json(fx["transcript"]),
                        call_time=datetime.fromisoformat(fx["call_started_at"]), settings=settings)
+
+
+def simulated_call_ops(fx: dict[str, Any]) -> dict[str, Any]:
+    """DEMO_MODE only: plausible, fixed numbers (stored with ops_simulated=True). Not from Bolna."""
+    turns = len(fx.get("transcript") or [])
+    duration = float(max(60, turns * 6))
+    return {
+        "total_cost": round(duration / 60 * 2.5, 2),
+        "cost_breakdown": {"simulated": True},
+        "latency_data": {"time_to_first_audio": 1.2, "simulated": True},
+        "time_to_first_audio": 1.2,
+        "call_duration": duration,
+        "hangup_reason": "simulated",
+        "hangup_by": "agent",
+    }

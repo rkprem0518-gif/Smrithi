@@ -186,5 +186,52 @@
       "kn": "ನಮಸ್ಕಾರ! ನಾನು ಸ್ಮೃತಿ, ನಿಮ್ಮ ಮನೆಯವರ ಕಡೆಯಿಂದ ಕರೆ ಮಾಡುತ್ತಿದ್ದೇನೆ. ನೀವು ಯಾವ ಭಾಷೆಯಲ್ಲಿ ಮಾತಾಡಲು ಇಷ್ಟಪಡುತ್ತೀರಿ: ಕನ್ನಡ, ಹಿಂದಿ ಅಥವಾ ಇಂಗ್ಲಿಷ್?",
       "en": "Hello! This is Smriti, calling on behalf of your family. Which language would you like to speak: English, Hindi or Kannada?"
     }
+  },
+  "kinds": {
+    "_comment": "create_agent.py --kind checkin|family: the same voice stack, multilingual, with its own prompt, welcome lines and limits. The call starts in user_data.agent_language.",
+    "checkin": {
+      "agent_name": "Smriti weekly check-in",
+      "prompt_file": "checkin_agent.md",
+      "variables": [
+        "parent_name",
+        "family_name",
+        "relation",
+        "notes",
+        "topics",
+        "share_level",
+        "language"
+      ],
+      "default_language": "en",
+      "welcome_messages": {
+        "en": "Hello! This is Smriti, your family's AI companion, calling for our weekly chat. Is this a good time?",
+        "hi": "नमस्ते! मैं स्मृति हूँ, आपके परिवार की AI साथी। हमारी हफ़्ते वाली बातचीत के लिए फ़ोन किया है। क्या अभी बात करना ठीक रहेगा?",
+        "kn": "ನಮಸ್ಕಾರ! ನಾನು ಸ್ಮೃತಿ, ನಿಮ್ಮ ಮನೆಯವರ AI ಸಂಗಾತಿ. ನಮ್ಮ ವಾರದ ಮಾತುಕತೆಗೆ ಕರೆ ಮಾಡಿದ್ದೇನೆ. ಈಗ ಮಾತಾಡೋಕೆ ಸರಿಯಾಗುತ್ತಾ?"
+      },
+      "check_user_online_message": "Hello? Can you hear me?",
+      "call_cancellation_prompt": "End the call only right after the assistant has said its final goodbye (for example 'Talk to you next week. Take care!'), or after the person asked to stop and the assistant said goodbye, or after someone else answered and the assistant said goodbye. Never end the call in the middle of the conversation, even if the person is quiet or says something like 'okay' or 'that's all'.",
+      "hangup_after_silence": 30,
+      "call_terminate_seconds": 360
+    },
+    "family": {
+      "agent_name": "Smriti family update",
+      "prompt_file": "family_agent.md",
+      "variables": [
+        "family_name",
+        "parent_name",
+        "relation",
+        "reason",
+        "suggested_visit"
+      ],
+      "default_language": "en",
+      "welcome_messages": {
+        "en": "Hello, this is Smriti, calling with an update about your family. Is this a good time to talk?",
+        "hi": "नमस्ते, मैं स्मृति हूँ। आपके परिवार के बारे में एक जानकारी देने के लिए फ़ोन किया है। क्या अभी बात कर सकते हैं?",
+        "kn": "ನಮಸ್ಕಾರ, ನಾನು ಸ್ಮೃತಿ. ನಿಮ್ಮ ಮನೆಯವರ ಬಗ್ಗೆ ಒಂದು ಮಾಹಿತಿ ಕೊಡಲು ಕರೆ ಮಾಡಿದ್ದೇನೆ. ಈಗ ಮಾತಾಡಬಹುದಾ?"
+      },
+      "check_user_online_message": "Hello? Can you hear me?",
+      "call_cancellation_prompt": "End the call only right after the assistant has said its final goodbye ('Thank you ... Take care.'), or after the wrong person answered and the assistant said goodbye. Never end the call in the middle of the conversation.",
+      "hangup_after_silence": 30,
+      "call_terminate_seconds": 240
+    }
   }
 }

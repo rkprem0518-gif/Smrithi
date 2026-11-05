@@ -24,6 +24,34 @@ class SessionCreated(BaseModel):
     web_call: dict[str, Any] | None = None
 
 
+class CallOps(BaseModel):
+    """Operational data about the call, copied from the Bolna execution (null until Bolna reports it).
+    Amounts and latencies are in Bolna's own units. `simulated` = DEMO_MODE made the numbers up."""
+
+    total_cost: float | None = None
+    cost_breakdown: dict[str, Any] | None = None
+    latency_data: dict[str, Any] | None = None
+    time_to_first_audio: float | None = None
+    call_duration: float | None = None
+    has_recording: bool = False
+    recording_url: str | None = Field(default=None, description="Only with the reviewer token")
+    hangup_reason: str | None = None
+    hangup_by: str | None = None
+    simulated: bool = False
+    updated_at: datetime | None = None
+
+
+def call_ops(session: Any, include_recording: bool = False) -> CallOps:
+    return CallOps(
+        total_cost=session.total_cost, cost_breakdown=session.cost_breakdown, latency_data=session.latency_data,
+        time_to_first_audio=session.time_to_first_audio, call_duration=session.call_duration,
+        has_recording=bool(session.recording_url),
+        recording_url=session.recording_url if include_recording else None,
+        hangup_reason=session.hangup_reason, hangup_by=session.hangup_by,
+        simulated=bool(session.ops_simulated), updated_at=session.ops_updated_at,
+    )
+
+
 class SessionOut(BaseModel):
     session_id: str
     status: str
@@ -35,6 +63,7 @@ class SessionOut(BaseModel):
     outcome: str | None = None
     report: dict[str, Any] | None = None
     error: str | None = None
+    call_ops: CallOps = Field(default_factory=CallOps)
 
 
 class TurnIn(BaseModel):

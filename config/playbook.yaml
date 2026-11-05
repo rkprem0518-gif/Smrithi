@@ -1,0 +1,55 @@
+# The India playbook: small topic cards Smriti uses to start a natural conversation.
+# Before each call, 2 cards are picked (an upcoming festival first, then the parent's interests) and sent in
+# user_data as {{topics}}. Nothing is looked up during the call. Smriti says them in the call's language.
+
+cards:
+  grandchild:
+    tags: [family, grandchild]
+    opener: "Ask warmly about {grandchild}: how is she, how are her studies?"
+    reveals: mood, memory of recent events, loneliness
+  morning_walk:
+    tags: [walk, health]
+    opener: "Ask if they went for their morning walk this week, and where they walked."
+    reveals: mobility, pain, sleep
+  cooking:
+    tags: [food]
+    opener: "Ask what they cooked or ate today, and whether they enjoyed it."
+    reveals: appetite, energy, living alone
+  temple:
+    tags: [temple, faith]
+    opener: "Ask if they went to the temple this week."
+    reveals: mobility, social life
+  cricket:
+    tags: [cricket, sport]
+    opener: "Ask if they watched the cricket this week and who they think played well."
+    reveals: engagement, memory
+  garden:
+    tags: [garden, plants]
+    opener: "Ask how their plants and garden are doing."
+    reveals: activity, mood
+  visitors:
+    tags: [social]
+    opener: "Ask if anyone came to visit them this week, or if they visited anyone."
+    reveals: loneliness
+
+# Festival cards are used when the festival is within `lead_days`. Dates are for the coming year;
+# check them each year (regional dates differ).
+festivals:
+  - name: Deepavali
+    date: "2026-11-08"
+    lead_days: 10
+    opener: "Deepavali is coming. Ask how they are celebrating and who is coming home."
+  - name: Kannada Rajyotsava
+    date: "2026-11-01"
+    lead_days: 5
+    opener: "Kannada Rajyotsava is on 1 November. Ask if there is any celebration in their area."
+  - name: Sankranti
+    date: "2027-01-14"
+    lead_days: 10
+    opener: "Sankranti is coming. Ask about ellu-bella and plans with family."
+  - name: Ugadi
+    date: "2027-04-07"
+    lead_days: 10
+    opener: "Ugadi is coming. Ask about the new year plans and festival food."
+
+default_cards: [morning_walk, cooking, visitors]

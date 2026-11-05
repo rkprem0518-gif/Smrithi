@@ -1,10 +1,11 @@
-from fastapi import APIRouter, Depends, HTTPException, Request, Response
+from fastapi import APIRouter, Depends, Header, HTTPException, Request, Response
 from sqlmodel import Session as DBSession
 from sqlmodel import select
 
+from app.api.review import is_reviewer
 from app.db import get_db
 from app.models import Score, Session
-from app.schemas import SessionCreate, SessionCreated, SessionOut
+from app.schemas import SessionCreate, SessionCreated, SessionOut, call_ops
 from app.services import orchestrator
 from app.settings import get_settings
 
@@ -45,14 +46,18 @@ async def create_session(body: SessionCreate, request: Request, db: DBSession = 
 
 
 @router.get("/{session_id}", response_model=SessionOut)
-def get_session(session_id: str, db: DBSession = Depends(get_db)) -> SessionOut:
+def get_session(
+    session_id: str, authorization: str = Header(default=""), db: DBSession = Depends(get_db)
+) -> SessionOut:
+    """Anyone with the session id sees the report and call ops; the recording URL (the elder's voice)
+    is only included for the reviewer token."""
     session = _get_live(db, session_id)
     score = db.exec(select(Score).where(Score.session_id == session.id)).first()
     return SessionOut(
         session_id=session.id, status=session.status, review_status=session.review_status,
         mode=session.mode, language=session.language, created_at=session.created_at, is_demo=session.is_demo,
         outcome=score.outcome if score else None, report=score.report_json if score else None,
-        error=session.error,
+        error=session.error, call_ops=call_ops(session, include_recording=is_reviewer(authorization)),
     )
 
 

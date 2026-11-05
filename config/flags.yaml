@@ -1,0 +1,147 @@
+# Fixed rules that turn what the parent said on a weekly call into flags (app/family/flags.py).
+# The AI never decides a flag: a phrase below must appear in the parent's own words.
+#
+# kind:
+#   red    -> red flag at once (care desk now; in the call Smriti gives the emergency line)
+#   yellow -> yellow flag at once
+#   watch  -> noted (green); becomes yellow when it comes up in `repeat_calls` calls within `repeat_days`
+#   safety -> red, but only the care desk sees it: never the family (it may be about a family member)
+# Phrases: Latin phrases match whole words (case-insensitive); Devanagari / Kannada phrases match anywhere.
+# `clear` phrases in the same sentence mean it got better ("my knee is better") -> no flag, a note instead.
+
+repeat_calls: 2
+repeat_days: 30
+
+negations_en: ["no", "not", "never", "didn't", "don't", "dont", "isn't", "wasn't", "without", "nothing", "haven't", "hasn't"]
+
+categories:
+  chest:
+    kind: red
+    label: Chest pain
+    rule: Chest pain mentioned
+    phrases:
+      en: ["chest pain", "pain in my chest", "pain in the chest", "heart pain", "chest is hurting", "chest hurts"]
+      hi: ["सीने में दर्द", "छाती में दर्द", "सीने में दुख", "दिल में दर्द"]
+      kn: ["ಎದೆ ನೋವು", "ಎದೆನೋವು", "ಎದೆಯಲ್ಲಿ ನೋವು"]
+  breath:
+    kind: red
+    label: Breathlessness
+    rule: Trouble breathing mentioned
+    phrases:
+      en: ["can't breathe", "cannot breathe", "breathless", "short of breath", "out of breath", "trouble breathing"]
+      hi: ["सांस नहीं", "साँस नहीं", "सांस फूल", "साँस फूल", "सांस लेने में"]
+      kn: ["ಉಸಿರು ಕಟ್ಟ", "ಉಸಿರಾಡಲು ಕಷ್ಟ", "ಉಸಿರು ಸಿಗ"]
+  fall:
+    kind: red
+    label: A fall
+    rule: A fall mentioned
+    phrases:
+      en: ["i fell", "fell down", "had a fall", "slipped and fell", "fell in the", "fell on the"]
+      hi: ["गिर गया", "गिर गई", "गिर गयी", "गिर पड़ा", "गिर पड़ी", "फिसल गया", "फिसल गई"]
+      kn: ["ಬಿದ್ದೆ", "ಬಿದ್ದುಬಿಟ್ಟೆ", "ಜಾರಿ ಬಿದ್ದ", "ಕೆಳಗೆ ಬಿದ್ದ"]
+  self_harm:
+    kind: red
+    label: Not wanting to live
+    rule: Talk of not wanting to live
+    phrases:
+      en: ["want to die", "don't want to live", "end my life", "no point living", "better off dead", "kill myself"]
+      hi: ["मर जाना चाहता", "मर जाना चाहती", "जीना नहीं चाहता", "जीना नहीं चाहती", "जीने का मन नहीं"]
+      kn: ["ಸಾಯಬೇಕು", "ಸತ್ತು ಹೋಗಬೇಕು", "ಬದುಕೋಕೆ ಇಷ್ಟ ಇಲ್ಲ", "ಬದುಕಲು ಇಷ್ಟವಿಲ್ಲ"]
+  confusion:
+    kind: red
+    label: Confused about where they are
+    rule: Did not know where they were
+    phrases:
+      en: ["don't know where i am", "where am i", "lost my way", "couldn't find my way home"]
+      hi: ["पता नहीं मैं कहाँ", "मैं कहाँ हूँ", "रास्ता भूल गया", "रास्ता भूल गई"]
+      kn: ["ಎಲ್ಲಿದ್ದೀನಿ ಗೊತ್ತಿಲ್ಲ", "ದಾರಿ ಮರೆತು"]
+  safety:
+    kind: safety
+    label: Safety worry
+    rule: Words about being hurt, threatened or having money taken
+    phrases:
+      en: ["hits me", "hit me", "beats me", "took my money", "takes my money", "threatens me", "scared of him", "scared of her"]
+      hi: ["मारता है", "मारती है", "पैसे छीन", "पैसे ले लेता", "धमकी"]
+      kn: ["ಹೊಡೀತಾನೆ", "ಹೊಡೀತಾಳೆ", "ದುಡ್ಡು ಕಿತ್ತುಕೊಂಡ", "ಹೆದರಿಸ್ತಾರೆ"]
+  loneliness:
+    kind: yellow
+    label: Feeling lonely
+    rule: Said they feel lonely
+    phrases:
+      en: ["lonely", "all alone", "feel alone", "no one comes", "nobody comes", "nobody visits", "no one to talk"]
+      hi: ["अकेला", "अकेली", "अकेलापन", "कोई नहीं आता", "किसी से बात नहीं"]
+      kn: ["ಒಂಟಿ", "ಒಬ್ಬನೇ ಇದ್ದೀನಿ", "ಒಬ್ಬಳೇ ಇದ್ದೀನಿ", "ಯಾರೂ ಬರಲ್ಲ", "ಯಾರೂ ಬರೋದಿಲ್ಲ"]
+  medicines:
+    kind: yellow
+    label: Missed medicines
+    rule: Said they missed or ran out of medicines
+    phrases:
+      en: ["forgot my medicine", "forgot my tablets", "missed my medicine", "missed my tablets", "didn't take my medicine", "ran out of medicine", "ran out of tablets", "stopped my medicine"]
+      hi: ["दवाई नहीं ली", "दवा नहीं ली", "दवाई भूल", "दवा भूल", "गोली नहीं ली", "दवाई खत्म"]
+      kn: ["ಮಾತ್ರೆ ತಗೊಂಡಿಲ್ಲ", "ಮಾತ್ರೆ ಮರೆತೆ", "ಔಷಧಿ ಮರೆತೆ", "ಔಷಧಿ ಮುಗಿದಿದೆ"]
+  pain:
+    kind: watch
+    label: Pain
+    rule: Pain came up in 2 calls this month
+    phrases:
+      en: ["pain", "painful", "hurts", "hurting", "aching", "ache", "sore"]
+      hi: ["दर्द", "दुखता", "दुख रहा", "दुख रही"]
+      kn: ["ನೋವು", "ನೋಯ್ತಿದೆ"]
+    clear:
+      en: ["better", "gone", "fine now", "much less", "healed", "okay now"]
+      hi: ["ठीक है अब", "अब ठीक", "कम है", "कम हो गया", "चला गया"]
+      kn: ["ಕಡಿಮೆ ಆಗಿದೆ", "ವಾಸಿ ಆಗಿದೆ", "ಈಗ ಪರವಾಗಿಲ್ಲ", "ಹೋಯ್ತು"]
+  sleep:
+    kind: watch
+    label: Poor sleep
+    rule: Poor sleep came up in 2 calls this month
+    phrases:
+      en: ["can't sleep", "cannot sleep", "couldn't sleep", "not sleeping", "no sleep", "slept badly", "didn't sleep", "awake all night", "insomnia"]
+      hi: ["नींद नहीं", "नींद कम", "सो नहीं", "सो नहीं पाया", "सो नहीं पाई"]
+      kn: ["ನಿದ್ದೆ ಬರ್ತಿಲ್ಲ", "ನಿದ್ದೆ ಬರಲ್ಲ", "ನಿದ್ರೆ ಇಲ್ಲ", "ನಿದ್ದೆ ಆಗಿಲ್ಲ", "ನಿದ್ದೆ ಬರಲಿಲ್ಲ"]
+    clear:
+      en: ["better", "slept well", "fine now"]
+      hi: ["अच्छी नींद", "अब ठीक"]
+      kn: ["ಚೆನ್ನಾಗಿ ನಿದ್ದೆ", "ಈಗ ಪರವಾಗಿಲ್ಲ"]
+  appetite:
+    kind: watch
+    label: Not eating well
+    rule: Low appetite came up in 2 calls this month
+    phrases:
+      en: ["not hungry", "no appetite", "not eating", "skipped lunch", "skipped dinner", "skipped breakfast", "don't feel like eating"]
+      hi: ["भूख नहीं", "खाना नहीं खाया", "खाने का मन नहीं"]
+      kn: ["ಹಸಿವಿಲ್ಲ", "ಹಸಿವೆ ಇಲ್ಲ", "ಊಟ ಮಾಡಿಲ್ಲ", "ತಿನ್ನೋಕೆ ಮನಸ್ಸಿಲ್ಲ"]
+  mood:
+    kind: watch
+    label: Low mood
+    rule: Low mood came up in 2 calls this month
+    phrases:
+      en: ["sad", "feeling low", "feel low", "worried", "tension", "upset", "depressed", "no mood", "ghabrahat"]
+      hi: ["उदास", "टेंशन", "घबराहट", "मन नहीं लग", "परेशान", "चिंता"]
+      kn: ["ಬೇಜಾರು", "ಚಿಂತೆ", "ಟೆನ್ಷನ್", "ಮನಸ್ಸು ಸರಿ ಇಲ್ಲ", "ದುಃಖ"]
+  memory:
+    kind: watch
+    label: Memory slips
+    rule: Forgetting came up in 2 calls this month
+    phrases:
+      en: ["i forgot", "i forget", "keep forgetting", "can't remember", "cannot remember", "misplaced", "lost my keys"]
+      hi: ["भूल गया", "भूल गई", "भूल जाता", "भूल जाती", "याद नहीं"]
+      kn: ["ಮರೆತುಬಿಟ್ಟೆ", "ಮರೆತು ಹೋಯ್ತು", "ಮರೆತೋಗುತ್ತೆ", "ನೆನಪಿಲ್ಲ", "ಜ್ಞಾಪಕ ಇಲ್ಲ"]
+
+# Words that make the call's mood "cheerful".
+cheerful:
+  en: ["happy", "good", "great", "nice", "wonderful", "enjoyed", "fun", "lovely", "fine"]
+  hi: ["अच्छा", "अच्छी", "बढ़िया", "खुश", "मज़ा", "मजा", "बहुत अच्छा"]
+  kn: ["ಚೆನ್ನಾಗಿ", "ಚೆನ್ನಾಗಿದೆ", "ಖುಷಿ", "ಸಂತೋಷ", "ಮಜಾ"]
+
+# Smriti's closing question (fixed words in prompts/checkin_agent.md). The parent's next reply is the
+# "message for the family", unless it is just "no / nothing".
+close_question:
+  - "anything you'd like me to tell"
+  - "anything you would like me to tell"
+  - "कुछ बताना चाहेंगे"
+  - "ಏನಾದರೂ ಹೇಳಬೇಕಾ"
+nothing_replies:
+  en: ["no", "nothing", "no thanks", "that's all", "nope", "not really", "all good"]
+  hi: ["नहीं", "कुछ नहीं", "बस", "नहीं जी"]
+  kn: ["ಇಲ್ಲ", "ಏನಿಲ್ಲ", "ಏನೂ ಇಲ್ಲ", "ಅಷ್ಟೇ"]

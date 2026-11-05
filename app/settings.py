@@ -32,6 +32,9 @@ class Settings(BaseSettings):
     bolna_agent_id_en: str = ""  # English agent (create_agent.py --language en); falls back to BOLNA_AGENT_ID
     # BOLNA_AGENT_ID speaks Hindi, Kannada and English and lets the person pick (create_agent.py --multilingual)
     bolna_multilingual: bool = False
+    bolna_agent_id_checkin: str = ""  # weekly check-in agent (create_agent.py --kind checkin)
+    bolna_agent_id_family: str = ""  # calls the son/daughter after the care desk approves (--kind family)
+    seed_family_demo: bool = True  # create the demo parent "Appa" with 8 weeks of history at startup
     bolna_from_number: str = ""
     bolna_webhook_token: str = "change-me"
 
@@ -53,6 +56,8 @@ class Settings(BaseSettings):
     bolna_timeout_seconds: float = 15.0
     bolna_retry_backoff_seconds: float = 0.5
     demo_call_step_seconds: float = 2.0
+    sse_keepalive_seconds: float = 15.0
+    ops_cache_seconds: float = 60.0  # how long GET /user/me (wallet) is cached for /api/ops/summary
 
     @field_validator("*", mode="before")
     @classmethod

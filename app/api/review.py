@@ -6,20 +6,32 @@ from sqlmodel import select
 
 from app.db import get_db
 from app.models import CallArtifact, Review, ReviewStatus, Score, Session
-from app.schemas import ReviewDecision
+from app.schemas import ReviewDecision, call_ops
 from app.settings import get_settings
 
 router = APIRouter(prefix="/api/review", tags=["review"])
 
 
-def require_reviewer(authorization: str = Header(default="")) -> None:
+def check_reviewer_token(supplied: str) -> None:
+    """Raise 503/401 unless `supplied` is ADMIN_REVIEW_TOKEN (shared by review, ops and events)."""
     settings = get_settings()
     token = settings.admin_review_token
     if settings.app_env == "production" and token in ("", "change-me"):
         raise HTTPException(503, "Set ADMIN_REVIEW_TOKEN before using the reviewer queue in production.")
-    supplied = authorization.removeprefix("Bearer ").strip()
     if not supplied or not hmac.compare_digest(supplied.encode(), token.encode()):
         raise HTTPException(401, "Reviewer token required", headers={"WWW-Authenticate": "Bearer"})
+
+
+def is_reviewer(authorization: str) -> bool:
+    try:
+        check_reviewer_token(authorization.removeprefix("Bearer ").strip())
+    except HTTPException:
+        return False
+    return True
+
+
+def require_reviewer(authorization: str = Header(default="")) -> None:
+    check_reviewer_token(authorization.removeprefix("Bearer ").strip())
 
 
 @router.get("", dependencies=[Depends(require_reviewer)])
@@ -46,6 +58,7 @@ def review_queue(status: str = "pending", db: DBSession = Depends(get_db)) -> di
             "report": score.report_json if score else None,
             "transcript": artifact.transcript_json if artifact else [],
             "recording_url": artifact.recording_url if artifact else None,
+            "call_ops": call_ops(session, include_recording=True).model_dump(),
             "reviews": [r.model_dump() for r in reviews],
         })
     return {"items": items, "count": len(items)}
