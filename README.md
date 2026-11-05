@@ -150,6 +150,8 @@ What the real transcript taught us, and what we changed:
 | English words in Hindi/Kannada answers come out in the native script ("यस", "ಡಾಗ್", "फोर सेवन टू") | Hinglish/Kanglish accepted: English list words, animals, days, seasons, times, digits and yes/no added in Devanagari and Kannada script |
 | The person may prefer a different language from the one the family picked | one multilingual agent; an English greeting asks "English, Hindi or Kannada?" and the call continues in the person's choice |
 | Noisy lines (the Kannada call was made from a moving vehicle) | Bolna's built-in noise cancellation turned on (level 85). Custom denoising is not possible inside Bolna's live audio path; denoising the recording after the call is on the roadmap |
+| Multilingual call: the person chose English and the whole call stayed in English, but "that's all" during animal naming (transcribed as "यह बंद हुई") triggered the distress stop and the call ended | the stop rule now needs clear distress or a clear request to end the whole call; "done / बस / ಅಷ್ಟೇ" moves to the next task, and when unsure the agent asks "Shall we continue?" |
+| English list words misheard on that call ("river slipper" came out as "Reverse sweeper", "fan" as "Pan") | to try next: Deepgram `nova-3` as the English transcriber |
 | An answer split over two turns ("8" … "एक। छः।") | already handled: the hearing check joins split answers |
 
 ### NEXT

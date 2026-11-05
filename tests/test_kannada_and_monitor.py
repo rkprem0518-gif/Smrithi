@@ -207,3 +207,9 @@ def test_multilingual_user_data_and_agent_choice() -> None:
     assert "agent_language" not in build_user_data(s)
     st = Settings(_env_file=None, bolna_agent_id="multi", bolna_agent_id_kn="kn-1", bolna_multilingual=True)
     assert st.agent_id_for("kn") == "multi"
+
+
+def test_prompt_does_not_stop_on_done() -> None:
+    prompt = agent_prompt()
+    assert "NOT a request to stop the call" in prompt
+    assert "Shall we continue?" in prompt and "ಮುಂದುವರಿಸೋಣವಾ?" in prompt and "क्या हम आगे बढ़ें?" in prompt
