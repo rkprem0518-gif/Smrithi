@@ -185,7 +185,8 @@ def test_multilingual_agent_payload() -> None:
     payload = build_agent_payload(Settings(_env_file=None), agent_template(), agent_prompt(), multilingual=True)
     tools = payload["agent_config"]["tasks"][0]["tools_config"]
     ml = tools["multilingual_config"]
-    assert ml["enabled"] is True and ml["active_language"] == "hi"
+    assert ml["enabled"] is True and ml["active_language"] == "en"
+    assert payload["agent_config"]["agent_welcome_message"].startswith("Hello!")
     assert set(ml["languages"]) == {"hi", "kn", "en"}
     for lang, entry in ml["languages"].items():
         assert entry["transcriber"]["language"] == lang
@@ -201,7 +202,7 @@ def test_multilingual_user_data_and_agent_choice() -> None:
 
     s = Sess(word_form="A", language="kn")
     data = build_user_data(s, multilingual=True)
-    assert data["agent_language"] == "kn"
+    assert data["agent_language"] == "en" and data["language"] == "kn"  # opens in English; kn is the hint
     assert data["word_list_kn"].startswith("ಮನೆ") and data["word_list_hi"].startswith("घर")
     assert "agent_language" not in build_user_data(s)
     st = Settings(_env_file=None, bolna_agent_id="multi", bolna_agent_id_kn="kn-1", bolna_multilingual=True)

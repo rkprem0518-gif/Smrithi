@@ -84,7 +84,9 @@ def build_user_data(session: Session, multilingual: bool = False) -> dict[str, A
         **{f"word_list_{lang}": word_list_for(session.word_form, lang) for lang in ("hi", "kn", "en")},
     }
     if multilingual:
-        data["agent_language"] = session.language  # starting language; the person can pick another
+        # Every call opens in English and asks which language to speak; the family's choice
+        # ({{language}}) is only a hint the agent uses if the person doesn't pick clearly.
+        data["agent_language"] = "en"
     return data
 
 

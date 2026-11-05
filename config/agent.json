@@ -177,10 +177,10 @@
     }
   },
   "multilingual": {
-    "_comment": "Used by create_agent.py --multilingual: one agent with Hindi, Kannada and English. The greeting asks which language to speak; Bolna switches speech recognition, voice and replies together when the caller names a language or speaks one (language_switch_trigger). The call's starting language comes from user_data.agent_language.",
-    "default_language": "hi",
+    "_comment": "Used by create_agent.py --multilingual: one agent with Hindi, Kannada and English. Every call starts in English (user_data.agent_language = en): the greeting asks which language to speak, and Bolna switches speech recognition, voice and replies together when the caller names a language or speaks one.",
+    "default_language": "en",
     "language_switch_trigger": "requested_or_auto_detected",
-    "check_user_online_message": "हेलो? हेलो?",
+    "check_user_online_message": "Hello? Hello?",
     "welcome_messages": {
       "hi": "नमस्ते! मैं स्मृति बोल रही हूँ, आपके परिवार की ओर से। आप किस भाषा में बात करना चाहेंगे: हिंदी, कन्नड़ या इंग्लिश?",
       "kn": "ನಮಸ್ಕಾರ! ನಾನು ಸ್ಮೃತಿ, ನಿಮ್ಮ ಮನೆಯವರ ಕಡೆಯಿಂದ ಕರೆ ಮಾಡುತ್ತಿದ್ದೇನೆ. ನೀವು ಯಾವ ಭಾಷೆಯಲ್ಲಿ ಮಾತಾಡಲು ಇಷ್ಟಪಡುತ್ತೀರಿ: ಕನ್ನಡ, ಹಿಂದಿ ಅಥವಾ ಇಂಗ್ಲಿಷ್?",

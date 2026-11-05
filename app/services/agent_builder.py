@@ -52,8 +52,9 @@ def build_agent_payload(
     if multilingual:
         tools = task["tools_config"]
         tools["multilingual_config"] = _multilingual_config(template, tools["synthesizer"])
-        agent_config["agent_welcome_message"] = template["multilingual"]["welcome_messages"]["hi"]
-        # "Hello?" works in every language; the default online check is English.
+        ml = template["multilingual"]
+        agent_config["agent_welcome_message"] = ml["welcome_messages"][ml["default_language"]]
+        # The call starts in English, so the "can you hear me" check is a plain "Hello?".
         task["task_config"]["check_user_online_message"] = template["multilingual"]["check_user_online_message"]
     if variant:
         # TODO(bolna): confirm Sarvam saaras:v4 + bulbul:v3 voice "suhani" with language "kn".
