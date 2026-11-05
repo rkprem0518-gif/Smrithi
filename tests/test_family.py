@@ -103,10 +103,24 @@ def test_message_for_family_and_mood() -> None:
 def test_checkin_and_family_agents_are_multilingual(kind: str) -> None:
     payload = build_agent_payload(Settings(_env_file=None), agent_template(), agent_prompt(kind), kind=kind)
     tools = payload["agent_config"]["tasks"][0]["tools_config"]
-    assert set(tools["multilingual_config"]["languages"]) == {"hi", "kn", "en"}
+    langs = set(tools["multilingual_config"]["languages"])
+    if kind == "checkin":  # every language Sarvam STT + TTS support on Bolna
+        assert langs == {"en", "hi", "kn", "ta", "te", "ml", "mr", "bn", "gu", "pa", "od"}
+        assert tools["multilingual_config"]["language_switch_trigger"] == "requested_or_auto_detected"
+    else:
+        assert langs == {"hi", "kn", "en"}
     tc = payload["agent_config"]["tasks"][0]["task_config"]
     assert tc["hangup_after_LLMCall"] is True and "goodbye" in tc["call_cancellation_prompt"]
     assert payload["agent_config"]["agent_welcome_message"].rstrip().endswith("?")
+
+
+def test_interruption_and_language_lock_settings() -> None:
+    payload = build_agent_payload(Settings(_env_file=None), agent_template(), agent_prompt(), multilingual=True)
+    task = payload["agent_config"]["tasks"][0]
+    assert task["task_config"]["number_of_words_for_interruption"] == 2  # stops sooner when the person talks
+    assert task["tools_config"]["transcriber"]["endpointing"] == 500
+    # The memory check only switches language when the person asks: word lists and scoring depend on it.
+    assert task["tools_config"]["multilingual_config"]["language_switch_trigger"] == "caller_requested"
 
 
 def test_checkin_prompt_keeps_the_promises() -> None:
@@ -114,6 +128,8 @@ def test_checkin_prompt_keeps_the_promises() -> None:
     assert "never ask you for money, bank details or an OTP" in prompt
     assert "112" in prompt and "14567" in prompt
     assert "Is there anything you'd like me to tell {{family_name}}?" in prompt  # flags.yaml close_question
+    assert "Listen first" in prompt and "One or two short sentences" in prompt
+    assert "How are you feeling today?" in prompt and "{{share_sentence}}" in prompt
 
 
 # ---------------------------------------------------------------- API (demo mode)
@@ -151,12 +167,11 @@ def _wait_checkin(client, checkin_id: str, status: str = "done") -> dict:
 def test_demo_checkin_call_writes_flags_notes_and_message(demo_client) -> None:
     r = demo_client.post("/api/family/call", json={"name": "Raghunath ji"}, headers=auth())
     assert r.status_code == 201, r.text
-    assert r.json()["remembered"].startswith("Knee hurt")
+    assert "sleeping" in r.json()["remembered"]
     c = _wait_checkin(demo_client, r.json()["checkin_id"])
     cats = {f["category"]: f["level"] for f in c["flags"]}
-    assert cats["pain"] == "yellow"  # knee pain again, after earlier mentions this month
-    assert cats["sleep"] == "yellow"
-    assert c["message_for_family"].startswith("Tell Ravi")
+    assert cats == {"sleep": "yellow"}  # poor sleep again, after earlier mentions this month
+    assert c["message_for_family"].startswith("Tell him")
     assert c["call_ops"]["simulated"] is True
 
 
@@ -180,12 +195,85 @@ def test_calendar_ics_and_contact_card(demo_client) -> None:
     assert "never asks for money" in vcf.text
 
 
+def login(client, user_id: str) -> None:
+    client.cookies.clear()
+    assert client.post("/api/auth/demo-login", json={"user_id": user_id}).status_code == 200
+
+
 def test_okay_only_sharing_hides_words_from_the_family(demo_client) -> None:
-    demo_client.patch("/api/family/settings", json={"share_level": "okay_only"}, headers=auth())
-    timeline = demo_client.get("/api/family/timeline", headers=auth()).json()["items"]
+    login(demo_client, "u-appa")
+    assert demo_client.patch("/api/family/settings", json={"share_level": "okay_only"}).status_code == 200
+    login(demo_client, "u-ravi")
+    timeline = demo_client.get("/api/family/timeline").json()["items"]
     assert all(c["quotes"] == [] for c in timeline)
     assert all(f["level"] == "red" for c in timeline for f in c["flags"])
-    assert demo_client.get("/api/family/doctor-summary", headers=auth()).status_code == 403
+    assert demo_client.get("/api/family/doctor-summary").status_code == 403
+    login(demo_client, "u-meera")  # the care team still sees what it needs to
+    assert demo_client.get("/api/family/doctor-summary").status_code == 200
+
+
+# ---------------------------------------------------------------- logins, circle, roles
+
+def test_demo_login_logout_and_who_sees_what(demo_client) -> None:
+    assert demo_client.get("/api/auth/me").json()["user"] is None
+    login(demo_client, "u-ravi")
+    me = demo_client.get("/api/auth/me").json()
+    assert me["user"]["name"] == "Ravi Rao" and me["parents"][0]["call_name"] == "Appa"
+    assert demo_client.get("/api/care/queue").status_code == 403  # family is not the care team
+    assert demo_client.patch("/api/family/settings", json={"share_level": "all"}).status_code == 403  # only Appa
+    assert demo_client.patch("/api/family/settings", json={"language": "ta"}).status_code == 403
+    login(demo_client, "u-priya")  # pending: Appa hasn't said yes yet
+    assert demo_client.get("/api/family/home").status_code == 404
+    demo_client.post("/api/auth/logout")
+    assert demo_client.get("/api/family/home").status_code == 401
+
+
+def test_elder_approves_a_new_member_and_controls_language_and_calls(demo_client) -> None:
+    login(demo_client, "u-appa")
+    circle = demo_client.get("/api/people/me").json()["circles"][0]
+    pending = next(m for m in circle["members"] if m["status"] == "pending")
+    assert pending["name"] == "Priya Rao"
+    r = demo_client.post(f"/api/people/members/{pending['member_id']}/decide", json={"accept": True})
+    assert r.status_code == 200
+    assert demo_client.patch("/api/family/settings", json={"language": "ta", "calls_paused": True}).status_code == 200
+    login(demo_client, "u-priya")
+    home = demo_client.get("/api/family/home").json()
+    assert home["parent"]["language"] == "ta" and home["parent"]["calls_paused"] is True
+    assert demo_client.post("/api/family/call", json={}).status_code == 409  # paused: only Appa can call now
+    history = demo_client.get("/api/family/history").json()["items"]
+    assert any("Priya Rao is now in the circle" in h["text"] for h in history)
+
+
+def test_contacts_by_smriti_id_become_mutual(demo_client) -> None:
+    login(demo_client, "u-meera")
+    c = demo_client.post("/api/people/contacts", json={"query": "SM-RAVI42"}).json()
+    assert c["name"] == "Ravi Rao" and c["mutual"] is True  # Ravi had already added Dr. Meera
+    assert demo_client.post("/api/people/contacts", json={"query": "SM-NOBODY1"}).status_code == 404
+
+
+def test_schedule_with_family_questions_runs_a_checkin(demo_client) -> None:
+    login(demo_client, "u-ravi")
+    s = demo_client.post("/api/family/schedules", json={
+        "label": "Morning", "time": "08:30", "days": [0, 2, 4], "questions": ["Did you take your thyroid tablet?"],
+    }).json()
+    assert s["days"] == [0, 2, 4] and s["next_run_at"]
+    r = demo_client.post(f"/api/family/schedules/{s['id']}/run", json={})
+    assert r.status_code == 201, r.text
+    assert any("thyroid" in t for t in r.json()["topics"])
+    _wait_checkin(demo_client, r.json()["checkin_id"])
+
+
+def test_checkin_user_data_retires_notes_and_sends_exact_share_sentence(demo_client) -> None:
+    from app.db import new_db
+    from app.family import service
+
+    with new_db() as db:
+        parent = service.get_parent(db, "appa")
+        data, _, _ = service.checkin_user_data(db, parent, questions=["Did you eat?"])
+        assert "sleeping" in data["notes"] and "Did you eat?" in data["family_questions"]
+        assert data["share_sentence"].startswith("I'll let Ravi know how you are, including")
+        again, _, _ = service.checkin_user_data(db, parent)
+        assert "nothing to follow up" in again["notes"]  # never asks about the same thing twice
 
 
 # ---------------------------------------------------------------- live mode (Bolna mocked)
@@ -196,7 +284,7 @@ def test_live_checkin_sends_notes_and_topics_and_reads_the_transcript(live_clien
     assert r.status_code == 201, r.text
     sent = json.loads(route.calls.last.request.content)
     assert sent["agent_id"] == "ag-checkin"
-    assert sent["user_data"]["parent_name"] == "Raghunath ji" and "temple" in sent["user_data"]["notes"]
+    assert sent["user_data"]["parent_name"] == "Raghunath ji" and "sleeping" in sent["user_data"]["notes"]
     assert sent["user_data"]["agent_language"] == "kn"
     transcript = (
         "assistant: Is this a good time?\nuser: Yes. I fell in the bathroom yesterday.\n"

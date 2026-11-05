@@ -27,9 +27,9 @@ const I = {
 const ic = (name, extra = "") => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" ${extra}>${I[name]}</svg>`;
 
 /* ---------------------------------------------------------------- words */
-const LANG = { kn: "Kannada", hi: "Hindi", en: "English" };
-const MOOD = { cheerful: "Cheerful", okay: "Calm", low: "Low" };
-const KIND = { checkin: "Weekly chat", memory: "Memory check", family: "Call to family" };
+const LANG = { en: "English", hi: "Hindi", kn: "Kannada", ta: "Tamil", te: "Telugu", ml: "Malayalam", mr: "Marathi", bn: "Bengali", gu: "Gujarati", pa: "Punjabi", od: "Odia" };
+const MOOD = new Proxy({ cheerful: "Cheerful", okay: "Calm", low: "Low" }, { get: (o, k) => (o[k] ? tr(o[k]) : undefined) });
+const KIND = { checkin: "Check-in", memory: "Memory check", family: "Call to family" };
 const OUTCOME = {
   NORMAL: ["No memory concerns showed up", "green"],
   UNCERTAIN: ["Unclear: a recheck is suggested", "yellow"],
@@ -57,54 +57,74 @@ function inDays(iso) {
   return days <= 0 ? "today" : days === 1 ? "tomorrow" : `in ${days} days`;
 }
 const mins = (s) => (s ? `${Math.max(1, Math.round(s / 60))} min` : "");
-const greeting = () => { const h = new Date().getHours(); return h < 12 ? "Good morning" : h < 17 ? "Good afternoon" : "Good evening"; };
+const greeting = () => { const h = new Date().getHours(); return tr(h < 12 ? "Good morning" : h < 17 ? "Good afternoon" : "Good evening"); };
 
 /* ---------------------------------------------------------------- api */
-const state = { parent: null, fresh: null, live: null };
+const state = { parent: null, parentId: null, fresh: null, live: null, app: "family", me: null };
 
 async function api(path, opts = {}) {
-  const key = store.get("key");
   const res = await fetch(path, {
     ...opts,
-    headers: { "Content-Type": "application/json", Authorization: `Bearer ${key}`, ...(opts.headers || {}) },
+    credentials: "same-origin",
+    headers: { "Content-Type": "application/json", ...(opts.headers || {}) },
     body: opts.body ? JSON.stringify(opts.body) : undefined,
   });
-  if (res.status === 401) { askKey(); throw new Error("Access key needed"); }
+  if (res.status === 401) { showLogin(); throw new Error("LOGIN"); }
   const data = res.status === 204 ? {} : await res.json().catch(() => ({}));
   if (!res.ok) throw new Error(data.detail || `Something went wrong (${res.status})`);
   return data;
 }
-const withKey = (path) => `${path}${path.includes("?") ? "&" : "?"}token=${encodeURIComponent(store.get("key"))}`;
+const withKey = (path) => path;
+const P = (sep = "?") => (state.parentId ? `${sep}parent_id=${encodeURIComponent(state.parentId)}` : "");
 
 /* ---------------------------------------------------------------- shell */
-const ROUTES = [
-  ["today", "Today", "home"], ["timeline", "Timeline", "thread"], ["calendar", "Calendar", "cal"],
-  ["memory", "Memory", "brain"], ["reports", "Reports", "chart"],
-];
-const TEAM = [["care", "Care desk", "care"], ["behind", "Behind the call", "pulse"]];
+const NAV = {
+  family: [["today", "Today", "home"], ["timeline", "Timeline", "thread"], ["calendar", "Calendar", "cal"],
+    ["memory", "Memory", "brain"], ["reports", "Reports", "chart"], ["schedules", "Schedules", "spark"],
+    ["circle", "Family circle", "user"], ["history", "History", "pulse"]],
+  elder: [["home", "Home", "home"], ["mycircle", "My family", "user"], ["mycalls", "My calls", "phone"]],
+  clinic: [["patients", "Patients", "user"], ["care", "Review queue", "care"], ["behind", "Behind the call", "pulse"],
+    ["history", "History", "thread"]],
+};
+const HOME = { family: "today", elder: "home", clinic: "patients" };
+const APP_NAME = { family: "Family", elder: "For Appa", clinic: "Care team" };
 
 function renderNav(route) {
-  const link = ([r, label, icon]) => `<a href="#/${r}" class="${route === r ? "on" : ""}">${ic(icon)}<span>${label}</span></a>`;
-  $("#nav").innerHTML = `<div class="group">Family</div>${ROUTES.map(link).join("")}<div class="sep"></div><div class="group">Smriti team</div>${TEAM.map(link).join("")}`;
-  $("#tabbar").innerHTML = ROUTES.map(link).join("");
+  const nav = NAV[state.app] || NAV.family;
+  const link = ([r, label, icon]) => `<a href="#/${r}" class="${route === r ? "on" : ""}">${ic(icon)}<span>${tr(label)}</span></a>`;
+  $("#nav").innerHTML = `<div class="group">${tr(APP_NAME[state.app])}</div>${nav.map(link).join("")}`;
+  $("#tabbar").innerHTML = nav.slice(0, 5).map(link).join("");
+  const u = state.me && state.me.user;
   const p = state.parent;
-  $("#sideFoot").innerHTML = p ? `<div class="who"><div class="avatar sm">${esc(p.call_name[0])}</div><div><b>${esc(p.call_name)}</b><small>${esc(p.full_name)} · ${esc(p.city)}</small></div></div>
-    <div class="small muted" style="margin-top:10px">Speaks ${LANG[p.language] || p.language} · shares ${p.share_level === "okay_only" ? "only “I'm okay”" : "health worries"}</div>` : "";
+  const ports = state.me && state.me.ports;
+  $("#sideFoot").innerHTML = u ? `<div class="who"><div class="avatar sm">${esc(u.name[0])}</div><div><b>${esc(u.name)}</b><small>${esc(u.role_label)}${u.org ? " · " + esc(u.org) : ""}</small></div></div>
+    ${p ? `<div class="small muted" style="margin-top:10px">${esc(p.call_name)} speaks ${LANG[p.language] || p.language}${p.calls_paused ? " · <b>calls paused</b>" : ""}</div>` : ""}
+    <div class="small muted" style="margin-top:6px">${tr("Smriti ID")} <b>${esc(u.smriti_id)}</b></div>
+    <div style="margin-top:12px">${uiLangSwitch()}</div>
+    <button class="btn quiet sm" id="logout" style="margin-top:12px;width:100%">${tr("Log out")}</button>
+    ${ports ? `<div class="small muted" style="margin-top:12px">${tr("Demo apps")}: <a href="${ports.family}">Family</a> · <a href="${ports.elder}">Elder</a> · <a href="${ports.clinic}">Clinic</a></div>` : ""}` : "";
+  const lo = $("#logout");
+  if (lo) lo.onclick = logout;
 }
 
 const VIEWS = {};
 async function route() {
-  const [name, arg] = (location.hash.replace(/^#\/?/, "") || "today").split("/");
-  const view = VIEWS[name] ? name : "today";
+  if (!state.me || !state.me.user) return;
+  const nav = NAV[state.app] || NAV.family;
+  const [name, arg] = (location.hash.replace(/^#\/?/, "") || HOME[state.app]).split("/");
+  const allowed = new Set([...nav.map((n) => n[0]), ...(EXTRA_ROUTES[state.app] || [])]);
+  const view = VIEWS[name] && allowed.has(name) ? name : HOME[state.app];
   renderNav(view);
   const main = $("#view");
+  if (!state.parentId && state.app !== "clinic") { VIEWS.waiting(main); return; }
   try {
     await VIEWS[view](main, arg);
   } catch (e) {
-    if (e.message !== "Access key needed") main.innerHTML = `<div class="card"><h2>Couldn't load this</h2><p class="muted" style="margin-top:8px">${esc(e.message)}</p></div>`;
+    if (e.message !== "LOGIN") main.innerHTML = `<div class="card"><h2>Couldn't load this</h2><p class="muted" style="margin-top:8px">${esc(e.message)}</p></div>`;
   }
   renderNav(view);
 }
+const EXTRA_ROUTES = { family: ["doctor"], elder: [], clinic: ["patient", "doctor"] };
 window.addEventListener("hashchange", () => { route(); window.scrollTo(0, 0); });
 
 /* ---------------------------------------------------------------- pieces */
@@ -141,34 +161,34 @@ function knot(c, p) {
 
 /* ---------------------------------------------------------------- Today */
 VIEWS.today = async (main) => {
-  const h = await api("/api/family/home");
+  const h = await api("/api/family/home" + P());
   state.parent = h.parent;
   const p = h.parent, last = (h.recent || []).find((c) => c.kind === "checkin" && c.status === "done");
   const memo = (h.recent || []).find((c) => c.kind === "memory");
   const flags = h.week.flags;
   main.innerHTML = `
   <div class="page-head"><div><div class="eyebrow">${fmtLong(new Date().toISOString())}</div><h1>${greeting()}, ${esc(p.family_name)}.</h1>
-    <p>Here's how ${esc(p.call_name)} has been.</p></div></div>
+    <p>${tr("Here's how {name} has been.", { name: esc(p.call_name) })}</p></div></div>
   <div class="card hero">
     <div class="avatar lg">${esc(p.call_name[0])}</div>
     <div><h2>${esc(p.call_name)} <span class="muted" style="font-size:18px">· ${esc(p.full_name)}, ${esc(p.city)}</span></h2>
       ${last ? `<div class="mood" style="margin-top:8px">${MOOD[last.mood] || "—"} on ${ago(last.at) === "today" ? "today" : fmtLong(last.at).split(" ")[0]}'s chat</div>` : ""}
-      <div class="meta"><span>Last chat <b>${last ? ago(last.at) : "—"}</b></span><span>Next chat <b>${fmtDay(p.next_call_at)}, ${fmtTime(p.next_call_at)}</b></span><span>Speaks <b>${LANG[p.language]}</b></span></div></div>
-    <div class="hero-actions"><button class="btn" id="callNow">${ic("phone")} Call ${esc(p.call_name)} now</button>
-      <a class="btn ghost sm" href="${withKey("/api/family/smriti.vcf")}">${ic("user")} Save Smriti's number</a></div>
+      <div class="meta"><span>${tr("Last chat")} <b>${last ? ago(last.at) : "—"}</b></span><span>${tr("Next chat")} <b>${fmtDay(p.next_call_at)}, ${fmtTime(p.next_call_at)}</b></span><span>${tr("Speaks")} <b>${LANG[p.language]}</b></span></div></div>
+    <div class="hero-actions"><button class="btn" id="callNow">${ic("phone")} ${tr("Call {name} now", { name: esc(p.call_name) })}</button>
+      <a class="btn ghost sm" href="${withKey("/api/family/smriti.vcf")}">${ic("user")} ${tr("Save Smriti's number")}</a></div>
   </div>
   <div class="grid g2" style="margin-top:20px">
-    <div class="card"><div class="spread"><h3>This week</h3><a href="#/timeline" class="small">See the timeline</a></div>
-      ${flags.length ? flags.map((f) => flagBlock(f)).join("") : `<p class="empty">Nothing worrying came up this week.</p>`}</div>
+    <div class="card"><div class="spread"><h3>${tr("This week")}</h3><a href="#/timeline" class="small">${tr("See the timeline")}</a></div>
+      ${flags.length ? flags.map((f) => flagBlock(f)).join("") : `<p class="empty">${tr("Nothing worrying came up this week.")}</p>`}</div>
     <div class="grid" style="align-content:start">
-      ${h.week.messages.length ? `<div class="card"><h3>${esc(p.call_name)} wants you to know</h3><div class="message"><div class="words" style="font-size:20px">${esc(h.week.messages[0].text)}</div><div class="small muted" style="margin-top:6px">Said ${ago(h.week.messages[0].at)}</div></div></div>` : ""}
-      ${memo ? `<div class="card"><div class="spread"><h3>Memory</h3><a class="small" href="#/memory">Details</a></div>
+      ${h.week.messages.length ? `<div class="card"><h3>${tr("{name} wants you to know", { name: esc(p.call_name) })}</h3><div class="message"><div class="words" style="font-size:20px">${esc(h.week.messages[0].text)}</div><div class="small muted" style="margin-top:6px">Said ${ago(h.week.messages[0].at)}</div></div></div>` : ""}
+      ${memo ? `<div class="card"><div class="spread"><h3>${tr("Memory")}</h3><a class="small" href="#/memory">${tr("Details")}</a></div>
         <div class="row"><span class="dot ${OUTCOME[memo.outcome]?.[1] || "memory"}"></span><b>${OUTCOME[memo.outcome]?.[0] || "Memory check"}</b></div>
         <p class="small muted" style="margin-top:6px">Memory check ${ago(memo.at)}${memo.review_status === "pending" ? " · the care team is reviewing it" : memo.review_status === "reviewed" ? " · reviewed by the care team" : ""}. Never a diagnosis.</p></div>` : ""}
-      <div class="card upcoming"><h3>Coming up</h3><ul>
+      <div class="card upcoming"><h3>${tr("Coming up")}</h3><ul>
         ${h.visits.map((v) => `<li><div class="datebox"><div class="d">${d(v.at).getDate()}</div><div class="m">${MONTHS[d(v.at).getMonth()].slice(0, 3)}</div></div><div><b>${esc(v.title)}</b><div class="small muted">${fmtTime(v.at)} · ${esc(v.place)}</div><a class="small" target="_blank" rel="noopener" href="${v.google_calendar_url}">Add to Google Calendar</a></div></li>`).join("")}
-        <li><div class="datebox"><div class="d">${d(p.next_call_at).getDate()}</div><div class="m">${MONTHS[d(p.next_call_at).getMonth()].slice(0, 3)}</div></div><div><b>Weekly chat</b><div class="small muted">${fmtDay(p.next_call_at)}, ${fmtTime(p.next_call_at)} · ${inDays(p.next_call_at)}</div></div></li>
-        <li><div class="datebox"><div class="d">${d(p.memory_check_due).getDate()}</div><div class="m">${MONTHS[d(p.memory_check_due).getMonth()].slice(0, 3)}</div></div><div><b>Next memory check</b><div class="small muted">${inDays(p.memory_check_due)}</div></div></li>
+        <li><div class="datebox"><div class="d">${d(p.next_call_at).getDate()}</div><div class="m">${MONTHS[d(p.next_call_at).getMonth()].slice(0, 3)}</div></div><div><b>${tr("Weekly chat")}</b><div class="small muted">${fmtDay(p.next_call_at)}, ${fmtTime(p.next_call_at)} · ${inDays(p.next_call_at)}</div></div></li>
+        <li><div class="datebox"><div class="d">${d(p.memory_check_due).getDate()}</div><div class="m">${MONTHS[d(p.memory_check_due).getMonth()].slice(0, 3)}</div></div><div><b>${tr("Next memory check")}</b><div class="small muted">${inDays(p.memory_check_due)}</div></div></li>
       </ul></div>
     </div>
   </div>`;
@@ -177,7 +197,7 @@ VIEWS.today = async (main) => {
 
 /* ---------------------------------------------------------------- Timeline */
 VIEWS.timeline = async (main) => {
-  const t = await api("/api/family/timeline");
+  const t = await api("/api/family/timeline" + P());
   state.parent = t.parent;
   const p = t.parent, items = t.items;
   const weeks = [];
@@ -200,7 +220,7 @@ VIEWS.timeline = async (main) => {
 
 /* ---------------------------------------------------------------- Calendar */
 VIEWS.calendar = async (main) => {
-  const [c, v] = await Promise.all([api("/api/family/calendar"), api("/api/family/visits")]);
+  const [c, v] = await Promise.all([api("/api/family/calendar" + P()), api("/api/family/visits" + P())]);
   state.parent = c.parent;
   const p = c.parent, now = new Date();
   let ym = store.get("calMonth") ? new Date(store.get("calMonth")) : new Date(now.getFullYear(), now.getMonth(), 1);
@@ -220,7 +240,7 @@ VIEWS.calendar = async (main) => {
     $("#calTitle").textContent = `${MONTHS[ym.getMonth()]} ${ym.getFullYear()}`;
   };
   main.innerHTML = `<div class="page-head"><div><div class="eyebrow">Calendar</div><h1>What's happening</h1><p>Weekly chats, memory checks and doctor's visits in one place.</p></div>
-    <div class="row"><a class="btn quiet sm" href="${withKey("/api/family/calendar.ics")}">${ic("down")} Download .ics</a><button class="btn sm" id="reqVisit">Request a doctor's visit</button></div></div>
+    <div class="row"><a class="btn quiet sm" href="${"/api/family/calendar.ics" + P()}">${ic("down")} Download .ics</a><button class="btn sm" id="reqVisit">Request a doctor's visit</button></div></div>
     <div class="grid"><div class="card"><div class="spread" style="margin-bottom:12px"><button class="btn quiet sm" id="prevM">‹</button><h3 id="calTitle" style="margin:0"></h3><button class="btn quiet sm" id="nextM">›</button></div><div class="cal" id="calGrid"></div>
       <div class="row small muted" style="margin-top:14px"><span class="chip green">Chat</span><span class="chip">Planned chat</span><span class="chip peacock">Memory check</span><span class="chip marigold">Call to family</span><span class="chip" style="background:var(--marigold);color:var(--ink)">Doctor's visit</span></div></div>
     <div class="card upcoming"><h3>Doctor's visits</h3>${v.items.length ? `<ul>${v.items.map((a) => `<li><div class="datebox"><div class="d">${d(a.at).getDate()}</div><div class="m">${MONTHS[d(a.at).getMonth()].slice(0, 3)}</div></div>
@@ -228,13 +248,13 @@ VIEWS.calendar = async (main) => {
       <a class="btn ghost sm" style="margin-top:8px" target="_blank" rel="noopener" href="${a.google_calendar_url}">${ic("cal")} Add to Google Calendar</a></div></li>`).join("")}</ul>` : `<p class="empty">No visits yet. When the care team flags something, Smriti calls ${esc(p.family_name)} and can set one up.</p>`}</div></div>`;
   $("#prevM").onclick = () => { ym = new Date(ym.getFullYear(), ym.getMonth() - 1, 1); store.set("calMonth", ym.toISOString()); draw(); };
   $("#nextM").onclick = () => { ym = new Date(ym.getFullYear(), ym.getMonth() + 1, 1); store.set("calMonth", ym.toISOString()); draw(); };
-  $("#reqVisit").onclick = async () => { await api("/api/family/visits", { method: "POST", body: { title: "Doctor visit" } }); toast("Visit requested. It's on the calendar."); route(); };
+  $("#reqVisit").onclick = async () => { await api("/api/family/visits", { method: "POST", body: { title: "Doctor visit", parent_id: state.parentId } }); toast("Visit requested. It's on the calendar."); route(); };
   draw();
 };
 
 /* ---------------------------------------------------------------- Memory */
 VIEWS.memory = async (main) => {
-  const r = await api("/api/family/report");
+  const r = await api("/api/family/report" + P());
   state.parent = r.parent;
   const p = r.parent, mem = r.memory.slice().reverse(), last = mem[0];
   const out = last && OUTCOME[last.outcome];
@@ -268,7 +288,7 @@ function moodChart(weeks) {
 }
 
 VIEWS.reports = async (main) => {
-  const r = await api("/api/family/report");
+  const r = await api("/api/family/report" + P());
   state.parent = r.parent;
   const p = r.parent;
   const cats = Object.entries(r.flags_by_category).sort((a, b) => b[1] - a[1]);
@@ -287,7 +307,7 @@ VIEWS.reports = async (main) => {
 };
 
 VIEWS.doctor = async (main) => {
-  const s = await api("/api/family/doctor-summary");
+  const s = await api("/api/family/doctor-summary" + P());
   const p = s.parent, m = s.memory;
   main.innerHTML = `<div class="row no-print" style="margin-bottom:18px"><a class="btn quiet sm" href="#/reports">‹ Back</a><button class="btn sm" onclick="window.print()">${ic("print")} Print</button></div>
   <article class="doc"><div class="spread"><div><div class="eyebrow">Smriti · summary for a doctor</div><h1>${esc(p.full_name)}</h1><p class="muted">${esc(p.city)} · speaks ${LANG[p.language]} · prepared ${fmtLong(s.generated_at)}</p></div>
@@ -326,13 +346,13 @@ VIEWS.care = async (main, sel) => {
     ${cur.type === "memory" && cur.session_id ? `<a class="small" style="display:inline-block;margin-top:12px" target="_blank" rel="noopener" href="/report.html?id=${encodeURIComponent(cur.session_id)}">Open the full memory report</a>` : ""}
     <div class="row" style="margin-top:24px"><button class="btn" id="approve">${ic("check")} Approve and call ${esc(p.family_name)}</button><button class="btn quiet" id="dismiss">Dismiss</button></div>
     <p class="small muted" style="margin-top:10px">Smriti will explain in plain words, never as a diagnosis, and offer to put a doctor's visit on the calendar.</p>`;
-  $("#approve").onclick = () => approveDialog(cur, p);
+  $("#approve").onclick = () => approveDialog(cur, cur.parent || p);
   $("#dismiss").onclick = async () => { await api(`/api/care/${cur.type}/${cur.id}/dismiss`, { method: "POST", body: { note: "Dismissed on the care desk" } }); toast("Dismissed."); location.hash = "#/care"; route(); };
 };
 
 /* ---------------------------------------------------------------- Behind the call */
 VIEWS.behind = async (main) => {
-  const o = await api("/api/ops/summary?limit=50");
+  const o = await api("/api/care/ops");
   const s = o.sessions || {}, b = o.bolna || {};
   const n = (v, digits = 2) => (v === null || v === undefined ? "—" : Number(v).toFixed(digits));
   // Bolna reports cost in US cents (33 for a 5-minute call matches its ~$0.06/min rate).
@@ -367,11 +387,12 @@ function callDialog(kind) {
   const memory = kind === "memory";
   const el = modal(`<h2>${memory ? "Start a memory check" : `Call ${esc(p.call_name)} now`}</h2>
     <p class="muted">${memory ? "About 5 minutes. Smriti asks which language to use, then runs the memory check." : `Smriti will ask how ${esc(p.call_name)} has been, remember last week, and write notes here when the call ends.`}</p>
-    <label class="field"><span>Phone number</span><input id="ph" inputmode="tel" autocomplete="off" placeholder="+91 98765 43210" value="${esc(store.get("parentPhone"))}"></label>
-    ${memory ? "" : `<label class="field"><span>Who will pick up?</span><input id="nm" value="${esc(store.get("parentName", p.honorific || p.call_name))}"></label>`}
+    <label class="field"><span>${tr("Phone number")}</span><input id="ph" inputmode="tel" autocomplete="off" placeholder="+91 98765 43210" value="${esc(store.get("parentPhone"))}"></label>
+    ${memory ? "" : `<label class="field"><span>${tr("Who will pick up?")}</span><input id="nm" value="${esc(store.get("parentName", p.honorific || p.call_name))}"></label>`}
+    ${memory || state.app !== "family" ? "" : `<label class="field"><span>Anything Smriti should ask? (optional, one per line)</span><textarea id="qs" rows="2" style="width:100%;border-radius:12px;border:1.5px solid var(--line);padding:10px 14px;font:inherit;background:var(--paper)" placeholder="Did you take your BP tablet today?"></textarea></label>`}
     <p class="small muted" style="margin-top:12px">The number stays in this browser. Smriti's server only keeps a scrambled form of it.</p>
     <div class="err" id="err" hidden></div>
-    <div class="actions"><button class="btn quiet" id="cancel">Cancel</button><button class="btn" id="go">${ic("phone")} Call now</button></div>`);
+    <div class="actions"><button class="btn quiet" id="cancel">${tr("Cancel")}</button><button class="btn" id="go">${ic("phone")} ${tr("Call now")}</button></div>`);
   $("#cancel", el).onclick = closeModal;
   $("#go", el).onclick = async () => {
     const phone = $("#ph", el).value.replace(/[\s-]/g, "");
@@ -380,7 +401,8 @@ function callDialog(kind) {
     if (name) store.set("parentName", name);
     $("#go", el).disabled = true;
     try {
-      const r = await api(memory ? "/api/family/memory-check" : "/api/family/call", { method: "POST", body: { phone: phone || null, name } });
+      const qs = $("#qs", el) ? $("#qs", el).value.split("\n").map((x) => x.trim()).filter(Boolean).slice(0, 5) : [];
+      const r = await api(memory ? "/api/family/memory-check" : "/api/family/call", { method: "POST", body: { phone: phone || null, name, questions: qs, parent_id: state.parentId } });
       closeModal();
       showLive(r.session_id, r.checkin_id, memory ? `Memory check with ${p.call_name}` : `Smriti is calling ${name || p.call_name}`, kind);
     } catch (e) {
@@ -410,14 +432,6 @@ function approveDialog(c, p) {
       $("#err", el).textContent = e.message; $("#err", el).hidden = false; $("#go", el).disabled = false;
     }
   };
-}
-
-function askKey() {
-  if ($("#keyForm")) return;
-  const el = modal(`<form id="keyForm"><h2>Welcome to Smriti</h2><p class="muted">Enter the access key for this family account.</p>
-    <label class="field"><span>Access key</span><input id="k" type="password" autocomplete="current-password"></label>
-    <div class="actions"><button class="btn" type="submit">Open</button></div></form>`);
-  $("#keyForm", el).onsubmit = (e) => { e.preventDefault(); store.set("key", $("#k", el).value.trim()); closeModal(); route(); };
 }
 
 function toast(msg) {
@@ -466,7 +480,7 @@ function showLive(sessionId, checkinId, title, kind) {
       if (!msg) msg = kind === "memory" ? (c.outcome ? `Done: ${OUTCOME[c.outcome][0].toLowerCase()}.` : "Done.") : c.summary || "Done.";
     } catch { /* keep the generic message */ }
     $("#liveSub", panel).textContent = msg || "Done.";
-    const target = kind === "family" ? "#/calendar" : "#/timeline";
+    const target = state.app === "elder" ? "#/mycalls" : state.app === "clinic" ? `#/patient/${state.parentId}` : kind === "family" ? "#/calendar" : "#/timeline";
     if (location.hash !== target) location.hash = target; else route();
     setTimeout(() => panel.remove(), 9000);
   };
@@ -483,9 +497,4 @@ function showLive(sessionId, checkinId, title, kind) {
   if (location.hash.startsWith("#/timeline")) route();
 }
 
-/* ---------------------------------------------------------------- start */
-if (!store.get("key")) {
-  const k = new URLSearchParams(location.search).get("key");
-  if (k) { store.set("key", k); history.replaceState(null, "", location.pathname + location.hash); }
-}
-route();
+/* start: see smriti-apps.js (boot) */

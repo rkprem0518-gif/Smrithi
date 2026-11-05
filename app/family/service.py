@@ -116,22 +116,42 @@ def memory_check_due(db: DBSession, parent: Parent) -> datetime:
 # ---------------------------------------------------------------- user_data for the agents
 
 
-def checkin_user_data(db: DBSession, parent: Parent, name: str | None = None) -> tuple[dict[str, Any], list[str], str]:
-    notes = recent_notes(db, parent)
+SHARE_SENTENCE = {
+    ShareLevel.OKAY_ONLY: "I'll just let {f} know you're doing well.",
+    ShareLevel.HEALTH: "I'll let {f} know how you are, including anything you told me about your health.",
+    ShareLevel.ALL: "I'll let {f} know how you are and what we talked about.",
+}
+
+
+def checkin_user_data(
+    db: DBSession, parent: Parent, name: str | None = None, questions: list[str] | None = None
+) -> tuple[dict[str, Any], list[str], str]:
+    """What the check-in agent gets for this call. Notes from last time are used once, then retired, so Smriti
+    never keeps asking about the same thing."""
+    notes = [n for n in recent_notes(db, parent, limit=2) if aware(n.created_at) >= utcnow() - timedelta(days=21)]
     topics = pick_topics(parent)
-    note_lines = [n.text for n in notes] or ["This is the first chat: no notes yet."]
+    for n in notes:
+        n.used = True
+        db.add(n)
+    db.commit()
+    questions = [q.strip() for q in (questions or []) if q.strip()]
     data = {
         "parent_name": name or parent.honorific or parent.call_name,
         "family_name": parent.family_name,
         "relation": parent.relation,
-        "notes": "\n".join(f"- {line}" for line in note_lines),
-        "topics": "\n".join(f"- {t}" for t in topics),
-        "share_level": parent.share_level,
+        "notes": "\n".join(f"   - {n.text}" for n in notes) or "   - (nothing to follow up)",
+        "topics": "\n".join(f"   - {t}" for t in topics),
+        "family_questions": "\n".join(f"   - {q}" for q in questions) or "   - (none today)",
+        "share_sentence": SHARE_SENTENCE.get(parent.share_level, SHARE_SENTENCE[ShareLevel.HEALTH]).format(
+            f=parent.family_name
+        ),
         "language": parent.language,
         "agent_language": parent.language,
         "call_type": "checkin",
     }
     remembered = notes[0].text if notes else ""
+    if questions:
+        topics = [f"{parent.family_name} asked: {q}" for q in questions] + topics
     return data, topics, remembered
 
 
@@ -195,9 +215,15 @@ async def start_call(
     remembered: str = "",
     summary: str = "",
     language: str | None = None,
+    actor: Any = None,
+    allow_paused: bool = False,
 ) -> tuple[Session, CheckIn]:
+    from app.family import people
+
     if kind not in KINDS:
         raise FamilyError(f"Unknown call kind {kind!r}", 400)
+    if kind == "checkin" and parent.calls_paused and not allow_paused:
+        raise FamilyError(f"{parent.call_name} has paused calls. Only {parent.call_name} can turn them back on.", 409)
     if phone and not E164.match(phone):
         raise FamilyError("Enter the phone number in international format, e.g. +919876543210.", 422)
     if not settings.demo_mode and not phone:
@@ -230,6 +256,9 @@ async def start_call(
     db.refresh(checkin)
     events.publish_status(session)
     log("family_call_created", session_id=session.id, kind=kind, demo=settings.demo_mode)
+    who = parent.family_name if kind == "family" else parent.call_name
+    what = "update for the family" if kind == "family" else "check-in"
+    people.log(db, parent.id, f"Smriti is calling {who} ({what}).", kind="call", actor=actor, ref=checkin.id)
 
     if settings.demo_mode:
         _touch(db, session, Status.CALLING)
@@ -291,6 +320,7 @@ def finish_call(
         db.commit()
         _touch(db, session, Status.SCORED)
         log("family_call_finished", session_id=session.id, kind=session.kind, status=checkin.status)
+        _log_finished(db, checkin, parent)
     except Exception as exc:
         db.rollback()
         db.refresh(session)
@@ -298,6 +328,29 @@ def finish_call(
         log("family_call_finish_failed", session_id=session.id, error=type(exc).__name__)
         raise
     return session
+
+
+def _log_finished(db: DBSession, checkin: CheckIn, parent: Parent) -> None:
+    from app.family import people
+
+    if checkin.kind == "family":
+        people.log(db, parent.id, checkin.summary or "Call to the family finished.", kind="call", ref=checkin.id)
+        return
+    if checkin.status == "missed":
+        people.log(db, parent.id, f"No answer from {parent.call_name}.", kind="call", ref=checkin.id)
+        return
+    people.log(db, parent.id, f"Chat with {parent.call_name} finished. {checkin.summary}", kind="call", ref=checkin.id)
+    for f in db.exec(select(Flag).where(Flag.checkin_id == checkin.id)).all():
+        if f.level == "red":
+            safety = f.review_note.startswith("safety")
+            people.log(
+                db,
+                parent.id,
+                f"Red flag for the care team: {_flag_title(f)}.",
+                kind="flag",
+                ref=f.id,
+                audience="clinic" if safety else "all",
+            )
 
 
 def flag_history(db: DBSession, parent_id: str, before: datetime | None = None) -> list[tuple[str, datetime]]:
@@ -399,18 +452,27 @@ DEMO_TRANSCRIPTS: dict[str, list[tuple[str, str]]] = {
     "checkin": [
         (
             "agent",
-            "Hello! This is Smriti, your family's AI companion, calling for our weekly chat. Is this a good time?",
+            "Hello! This is Smriti, your family's AI companion, calling to check in on you. Is this a good time?",
         ),
-        ("user", "Yes, yes, go ahead."),
-        ("agent", "Lovely. As always, I will never ask you for money, bank details or an OTP. How have you been?"),
-        ("user", "I am fine. Deepavali is coming, Ravi and Pinky will come home on Saturday."),
-        ("agent", "That's wonderful! Last time you said your knee hurt after the temple walk. Is it better now?"),
-        ("user", "Still some pain in the knee when I climb the stairs."),
-        ("agent", "I'm sorry to hear that. I'll make a note of it. How have you been sleeping?"),
-        ("user", "Not so good. I can't sleep after 3 in the morning."),
-        ("agent", "Thank you for telling me. Is there anything you'd like me to tell Ravi?"),
-        ("user", "Tell Ravi to bring the sweets from that Mysuru shop."),
-        ("agent", "I'll tell him. Talk to you next week, take care!"),
+        ("user", "Yes, go ahead."),
+        (
+            "agent",
+            "Lovely. As always, I will never ask you for money, bank details or an OTP. How are you feeling today?",
+        ),
+        ("user", "I'm okay, a bit tired. I couldn't sleep well, I keep waking up at 3."),
+        ("agent", "I'm sorry to hear that. Since when has that been happening?"),
+        ("user", "About a week now."),
+        ("agent", "Thank you, I'll note that. Ravi asked me to check: did you take your BP tablet today?"),
+        ("user", "Yes, I took it after breakfast."),
+        ("agent", "Good. How has your appetite been?"),
+        ("user", "Fine, I had dosa today."),
+        ("agent", "Lovely. Is there anything you'd like me to tell Ravi?"),
+        ("user", "Tell him to bring sweets from the Mysuru shop for Deepavali."),
+        (
+            "agent",
+            "I'll let Ravi know how you are, including what you told me about your health. "
+            "Talk to you soon. Take care!",
+        ),
     ],
     "family": [
         ("agent", "Hello, this is Smriti, calling with an update about your family. Is this a good time?"),
@@ -526,7 +588,11 @@ async def approve_case(
     settings: Settings,
     reviewer: str = "care desk",
     note: str = "",
+    actor: Any = None,
 ) -> dict[str, Any]:
+    from app.family import people
+
+    reviewer = getattr(actor, "name", None) or reviewer
     reason, place, title = family_reason(db, case_type, case_id, parent)
     if case_type == "flag":
         flag = db.get(Flag, case_id)
@@ -534,6 +600,14 @@ async def approve_case(
         if flag.review_note.startswith("safety"):
             db.add(flag)
             db.commit()
+            people.log(
+                db,
+                parent.id,
+                f"{reviewer} reviewed a safety concern. Handled by the care team only.",
+                kind="review",
+                actor=actor,
+                audience="clinic",
+            )
             return {"approved": True, "family_call": None, "note": "Safety concerns are not shared with the family."}
         db.add(flag)
     else:
@@ -547,6 +621,13 @@ async def approve_case(
         checkin.summary = (checkin.summary or "").split(" Waiting")[0] + " Reviewed by the care team."
         db.add(checkin)
     db.commit()
+    people.log(
+        db,
+        parent.id,
+        f"{reviewer} reviewed the {title.lower()} and approved a call to {parent.family_name}.",
+        kind="review",
+        actor=actor,
+    )
     visit_at = suggested_visit()
     user_data = {
         "family_name": parent.family_name,
@@ -570,11 +651,14 @@ async def approve_case(
         user_data=user_data,
         summary=summary,
         language="en",
+        actor=actor,
     )
     return {"approved": True, "family_call": {"session_id": session.id, "checkin_id": checkin.id}}
 
 
-def dismiss_case(db: DBSession, case_type: str, case_id: str, note: str = "") -> None:
+def dismiss_case(db: DBSession, case_type: str, case_id: str, note: str = "", actor: Any = None) -> None:
+    from app.family import people
+
     if case_type == "flag":
         flag = db.get(Flag, case_id)
         if not flag:
@@ -586,10 +670,22 @@ def dismiss_case(db: DBSession, case_type: str, case_id: str, note: str = "") ->
         session = db.get(Session, checkin.session_id) if checkin and checkin.session_id else None
         if not session:
             raise FamilyError("Memory check not found", 404)
-        db.add(Review(session_id=session.id, reviewer="care desk", decision="retest", note=note))
+        db.add(
+            Review(session_id=session.id, reviewer=getattr(actor, "name", "care desk"), decision="retest", note=note)
+        )
         session.review_status = ReviewStatus.REVIEWED
         db.add(session)
     db.commit()
+    parent_id = flag.parent_id if case_type == "flag" else checkin.parent_id
+    who = getattr(actor, "name", "The care team")
+    people.log(
+        db,
+        parent_id,
+        f"{who} reviewed and closed a {case_type} with no call needed.",
+        kind="review",
+        actor=actor,
+        audience="clinic",
+    )
 
 
 # ---------------------------------------------------------------- what the family sees
@@ -690,6 +786,9 @@ def parent_out(db: DBSession, parent: Parent) -> dict[str, Any]:
         "call_time": parent.call_time,
         "interests": parent.interests,
         "memory_check_due": memory_check_due(db, parent).isoformat(),
+        "age": parent.age,
+        "calls_paused": parent.calls_paused,
+        "user_id": parent.user_id,
         "last_memory_check": aware(last.at).isoformat() if last else None,
     }
 

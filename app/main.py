@@ -9,7 +9,7 @@ from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager, suppress
 from pathlib import Path
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.responses import RedirectResponse
 from fastapi.staticfiles import StaticFiles
 
@@ -55,9 +55,18 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         poller = asyncio.create_task(run_poller(settings, stop))
         if not settings.webhook_reachable:
             log("webhook_not_reachable", hint="PUBLIC_BASE_URL is not public https; relying on the poller")
+    scheduler: asyncio.Task | None = None
+    if settings.scheduler_enabled:
+        from app.family.scheduler import run_scheduler
+
+        scheduler = asyncio.create_task(run_scheduler(settings, stop))
     log("startup", demo_mode=settings.demo_mode, bolna_configured=settings.bolna_configured)
     yield
     stop.set()
+    if scheduler:
+        scheduler.cancel()
+        with suppress(asyncio.CancelledError):
+            await scheduler
     if poller:
         poller.cancel()
         with suppress(asyncio.CancelledError):
@@ -68,10 +77,15 @@ def create_app() -> FastAPI:
     app = FastAPI(title="Smriti", version="0.1.0", lifespan=lifespan)
     for module in (health, sessions, webhook, review, demo, events, ops, family):
         app.include_router(module.router)
-    app.include_router(family.care)
+    for extra in (family.care, family.auth, family.circle):
+        app.include_router(extra)
 
     @app.get("/", include_in_schema=False)
-    def index() -> RedirectResponse:
+    def index(request: Request) -> RedirectResponse:
+        """The family, elder and clinic apps share one page; scripts/run_demo.py serves it on three ports."""
+        s = get_settings()
+        if request.url.port in (s.elder_port, s.clinic_port):
+            return RedirectResponse("/smriti.html")
         return RedirectResponse("/index.html")
 
     app.mount("/", StaticFiles(directory=WEB_DIR, html=True), name="web")

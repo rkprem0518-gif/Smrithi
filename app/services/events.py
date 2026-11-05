@@ -77,6 +77,7 @@ def publish_status(session: Any, previous: str | None = None) -> None:
     bus.publish({
         "type": "session_status",
         "session_id": session.id,
+        "parent_id": getattr(session, "parent_id", None),
         "status": session.status,
         "previous": previous,
         "review_status": session.review_status,
@@ -89,8 +90,15 @@ def publish_ops(session: Any) -> None:
     bus.publish({
         "type": "session_ops",
         "session_id": session.id,
+        "parent_id": getattr(session, "parent_id", None),
         "status": session.status,
         "total_cost": session.total_cost,
         "call_duration": session.call_duration,
         "time_to_first_audio": session.time_to_first_audio,
     })
+
+
+def publish_activity(parent_id: str, kind: str, text: str, audience: str = "all", ref: str | None = None) -> None:
+    """Something happened in a family circle (for the live feed in the family, elder and clinic apps)."""
+    bus.publish({"type": "activity", "parent_id": parent_id, "kind": kind, "text": text, "audience": audience,
+                 "ref": ref})

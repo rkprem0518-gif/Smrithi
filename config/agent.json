@@ -131,7 +131,7 @@
             "model": "saaras:v4",
             "language": "hi",
             "stream": true,
-            "endpointing": 900
+            "endpointing": 500
           },
           "input": {
             "provider": "plivo",
@@ -148,7 +148,7 @@
           "call_cancellation_prompt": "End the call only when the assistant has just said its final goodbye of the memory check: the closing lines after the last question, the goodbye after stopping because the person was upset, or the goodbye after the person declined. Do not end the call during the tasks, even if the person is silent, unclear, or says a greeting or goodbye-like word while answering.",
           "call_terminate": 480,
           "backchanneling": false,
-          "number_of_words_for_interruption": 3,
+          "number_of_words_for_interruption": 2,
           "check_if_user_online": true,
           "trigger_user_online_message_after": 12,
           "check_user_online_message": "क्या आप मुझे सुन पा रहे हैं?",
@@ -177,9 +177,9 @@
     }
   },
   "multilingual": {
-    "_comment": "Used by create_agent.py --multilingual: one agent with Hindi, Kannada and English. Every call starts in English (user_data.agent_language = en): the greeting asks which language to speak, and Bolna switches speech recognition, voice and replies together when the caller names a language or speaks one.",
+    "_comment": "Used by create_agent.py --multilingual: one agent with Hindi, Kannada and English. Every call starts in English (user_data.agent_language = en): the greeting asks which language to speak, and Bolna switches speech recognition, voice and replies together when the caller names a language or speaks one. The memory check uses caller_requested: it only switches when the person asks, so a few English words in Kannada speech never flip the language mid-test (word lists and scoring depend on it).",
     "default_language": "en",
-    "language_switch_trigger": "requested_or_auto_detected",
+    "language_switch_trigger": "caller_requested",
     "check_user_online_message": "Hello? Hello?",
     "welcome_messages": {
       "hi": "नमस्ते! मैं स्मृति बोल रही हूँ, आपके परिवार की ओर से। आप किस भाषा में बात करना चाहेंगे: हिंदी, कन्नड़ या इंग्लिश?",
@@ -198,19 +198,46 @@
         "relation",
         "notes",
         "topics",
-        "share_level",
+        "family_questions",
+        "share_sentence",
         "language"
       ],
       "default_language": "en",
       "welcome_messages": {
-        "en": "Hello! This is Smriti, your family's AI companion, calling for our weekly chat. Is this a good time?",
-        "hi": "नमस्ते! मैं स्मृति हूँ, आपके परिवार की AI साथी। हमारी हफ़्ते वाली बातचीत के लिए फ़ोन किया है। क्या अभी बात करना ठीक रहेगा?",
-        "kn": "ನಮಸ್ಕಾರ! ನಾನು ಸ್ಮೃತಿ, ನಿಮ್ಮ ಮನೆಯವರ AI ಸಂಗಾತಿ. ನಮ್ಮ ವಾರದ ಮಾತುಕತೆಗೆ ಕರೆ ಮಾಡಿದ್ದೇನೆ. ಈಗ ಮಾತಾಡೋಕೆ ಸರಿಯಾಗುತ್ತಾ?"
+        "en": "Hello! This is Smriti, your family's AI companion, calling to check in on you. Is this a good time to talk?",
+        "hi": "नमस्ते! मैं स्मृति हूँ, आपके परिवार की AI साथी। आपका हालचाल पूछने के लिए फ़ोन किया है। क्या अभी बात करना ठीक रहेगा?",
+        "kn": "ನಮಸ್ಕಾರ! ನಾನು ಸ್ಮೃತಿ, ನಿಮ್ಮ ಮನೆಯವರ AI ಸಂಗಾತಿ. ನಿಮ್ಮ ಆರೋಗ್ಯ ವಿಚಾರಿಸಲು ಕರೆ ಮಾಡಿದ್ದೇನೆ. ಈಗ ಮಾತಾಡೋಕೆ ಸರಿಯಾಗುತ್ತಾ?",
+        "ta": "வணக்கம்! நான் ஸ்மிருதி, உங்கள் குடும்பத்தின் AI துணை. உங்கள் நலம் விசாரிக்க அழைக்கிறேன். இப்போது பேச வசதியா?",
+        "te": "నమస్కారం! నేను స్మృతి, మీ కుటుంబం ఏర్పాటు చేసిన AI సహచరిని. మీ క్షేమం తెలుసుకోవడానికి ఫోన్ చేశాను. ఇప్పుడు మాట్లాడటానికి వీలవుతుందా?",
+        "ml": "നമസ്കാരം! ഞാൻ സ്മൃതി, നിങ്ങളുടെ കുടുംബത്തിന്റെ AI കൂട്ടുകാരി. സുഖവിവരം അറിയാൻ വിളിച്ചതാണ്. ഇപ്പോൾ സംസാരിക്കാൻ സൗകര്യമുണ്ടോ?",
+        "mr": "नमस्कार! मी स्मृती, तुमच्या कुटुंबाची AI सोबती. तुमची विचारपूस करायला फोन केला आहे. आता बोलायला जमेल का?",
+        "bn": "নমস্কার! আমি স্মৃতি, আপনার পরিবারের AI সঙ্গী। আপনার খোঁজ নিতে ফোন করেছি। এখন কথা বলা যাবে?",
+        "gu": "નમસ્તે! હું સ્મૃતિ છું, તમારા પરિવારની AI સાથી. તમારા ખબર-અંતર પૂછવા ફોન કર્યો છે. અત્યારે વાત કરી શકાય?",
+        "pa": "ਸਤ ਸ੍ਰੀ ਅਕਾਲ! ਮੈਂ ਸਮ੍ਰਿਤੀ ਹਾਂ, ਤੁਹਾਡੇ ਪਰਿਵਾਰ ਦੀ AI ਸਾਥੀ। ਤੁਹਾਡਾ ਹਾਲ-ਚਾਲ ਪੁੱਛਣ ਲਈ ਫ਼ੋਨ ਕੀਤਾ ਹੈ। ਕੀ ਹੁਣ ਗੱਲ ਕਰ ਸਕਦੇ ਹੋ?",
+        "od": "ନମସ୍କାର! ମୁଁ ସ୍ମୃତି, ଆପଣଙ୍କ ପରିବାରର AI ସାଥୀ। ଆପଣଙ୍କ ଖବର ବୁଝିବାକୁ ଫୋନ କରିଛି। ଏବେ କଥା ହେବା ସୁବିଧା ହେବ କି?"
       },
       "check_user_online_message": "Hello? Can you hear me?",
-      "call_cancellation_prompt": "End the call only right after the assistant has said its final goodbye (for example 'Talk to you next week. Take care!'), or after the person asked to stop and the assistant said goodbye, or after someone else answered and the assistant said goodbye. Never end the call in the middle of the conversation, even if the person is quiet or says something like 'okay' or 'that's all'.",
+      "call_cancellation_prompt": "End the call only right after the assistant has said its final goodbye (for example 'Talk to you soon. Take care!'), or after the person asked to stop and the assistant said goodbye, or after someone else answered and the assistant said goodbye. Never end the call in the middle of the conversation, even if the person is quiet or says something like 'okay' or 'that's all'.",
       "hangup_after_silence": 30,
-      "call_terminate_seconds": 360
+      "call_terminate_seconds": 360,
+      "language_switch_trigger": "requested_or_auto_detected",
+      "_languages_note": "All 11 languages that Sarvam saaras:v4 (speech-to-text) and bulbul:v3 (voice) support on Bolna. The bulbul:v3 voice 'suhani' speaks all of them. Odia has no auto-detect: the person asks for it by name. Flags from the parent's words (config/flags.yaml) cover hi/kn/en; for the other languages the care team reads the transcript. Welcome lines in ta, te, ml, mr, bn, gu, pa and od need a native speaker's review before real use.",
+      "languages": [
+        "en",
+        "hi",
+        "kn",
+        "ta",
+        "te",
+        "ml",
+        "mr",
+        "bn",
+        "gu",
+        "pa",
+        "od"
+      ],
+      "task_config_extra": {
+        "auto_reschedule": true
+      }
     },
     "family": {
       "agent_name": "Smriti family update",
@@ -231,7 +258,8 @@
       "check_user_online_message": "Hello? Can you hear me?",
       "call_cancellation_prompt": "End the call only right after the assistant has said its final goodbye ('Thank you ... Take care.'), or after the wrong person answered and the assistant said goodbye. Never end the call in the middle of the conversation.",
       "hangup_after_silence": 30,
-      "call_terminate_seconds": 240
+      "call_terminate_seconds": 240,
+      "language_switch_trigger": "requested_or_auto_detected"
     }
   }
 }

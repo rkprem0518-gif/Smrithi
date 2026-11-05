@@ -20,7 +20,11 @@ KINDS = ("memory", "checkin", "family")
 
 
 def _multilingual_config(
-    welcome_messages: dict[str, str], default_language: str, switch_trigger: str, base_synth: dict[str, Any]
+    welcome_messages: dict[str, str],
+    default_language: str,
+    switch_trigger: str,
+    base_synth: dict[str, Any],
+    languages_wanted: tuple[str, ...] | list[str] = LANGUAGES,
 ) -> dict[str, Any]:
     """tools_config.multilingual_config: one agent speaking Hindi, Kannada and English.
 
@@ -28,7 +32,7 @@ def _multilingual_config(
     the base transcriber language and synthesizer, and has its own welcome message.
     """
     languages = {}
-    for lang in LANGUAGES:
+    for lang in languages_wanted:
         synth = copy.deepcopy(base_synth)
         synth["provider_config"]["language"] = lang
         languages[lang] = {
@@ -95,9 +99,10 @@ def _build_kind_payload(settings: Settings, template: dict[str, Any], prompt: st
     agent_config = copy.deepcopy(template["agent_config"])
     task = agent_config["tasks"][0]
     tools = task["tools_config"]
-    switch = template["multilingual"]["language_switch_trigger"]
+    switch = spec.get("language_switch_trigger", template["multilingual"]["language_switch_trigger"])
     tools["multilingual_config"] = _multilingual_config(
-        spec["welcome_messages"], spec["default_language"], switch, tools["synthesizer"]
+        spec["welcome_messages"], spec["default_language"], switch, tools["synthesizer"],
+        spec.get("languages", LANGUAGES),
     )
     agent_config["agent_name"] = spec["agent_name"]
     agent_config["agent_welcome_message"] = spec["welcome_messages"][spec["default_language"]]
@@ -107,6 +112,7 @@ def _build_kind_payload(settings: Settings, template: dict[str, Any], prompt: st
     tc["hangup_after_silence"] = spec["hangup_after_silence"]
     tc["call_terminate"] = int(spec["call_terminate_seconds"])
     tc["call_hangup_message"] = "Take care. Goodbye."
+    tc.update(spec.get("task_config_extra", {}))
     _webhook(agent_config, settings)
     _check_placeholders(prompt, tuple(spec["variables"]))
     return {"agent_config": agent_config, "agent_prompts": {"task_1": {"system_prompt": prompt}}}

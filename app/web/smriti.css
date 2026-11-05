@@ -280,12 +280,34 @@ table.calls th { color: var(--ink-3); font-weight: 400; font-size: 13px; text-tr
 
 .tabbar { display: none; }
 
+/* ---------- circle, history, elder app ---------- */
+.feed { list-style: none; margin: 0; padding: 0; }
+.feed li { display: grid; grid-template-columns: 14px 1fr; gap: 14px; padding: 14px 0; border-top: 1px solid var(--line); }
+.feed li:first-child { border-top: 0; }
+.feed .dot { margin-top: 8px; }
+.member { display: flex; align-items: center; gap: 14px; padding: 12px 0; border-top: 1px solid var(--line); flex-wrap: wrap; }
+.member:first-child { border-top: 0; }
+.share-opts { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; margin-top: 14px; }
+.share { text-align: left; border: 2px solid var(--line); background: var(--card); border-radius: 16px; padding: 18px; display: flex; flex-direction: column; gap: 6px; min-height: 120px; }
+.share b { font-size: 19px; }
+.share span { color: var(--ink-2); font-size: 16px; }
+.share.on { border-color: var(--peacock); background: var(--peacock-soft); }
+.big-select { width: 100%; min-height: 60px; margin-top: 16px; border-radius: 14px; border: 2px solid var(--line); padding: 0 16px; font: inherit; font-size: 20px; background: var(--paper); color: var(--ink); }
+#qr img, #qr canvas { border-radius: 10px; }
+.field textarea:focus { border-color: var(--peacock); outline: none; }
+body.elder-app { font-size: 21px; }
+body.elder-app h1 { font-size: 40px; }
+body.elder-app h2 { font-size: 27px; }
+body.elder-app .nav a { font-size: 20px; min-height: 56px; }
+body.elder-app .btn { min-height: 58px; font-size: 19px; }
+.login .case { width: 100%; }
+
 /* ---------- small screens ---------- */
 @media (max-width: 980px) {
   .shell { grid-template-columns: 1fr; }
   .side { display: none; }
   main { padding: 22px 16px 120px; }
-  .g2, .g3, .care, .two-col, .feature-list { grid-template-columns: 1fr; }
+  .g2, .g3, .care, .two-col, .feature-list, .share-opts { grid-template-columns: 1fr; }
   .hero { grid-template-columns: auto 1fr; }
   .hero-actions { grid-column: 1 / -1; }
   h1 { font-size: 28px; }
@@ -309,3 +331,11 @@ table.calls th { color: var(--ink-3); font-weight: 400; font-size: 13px; text-tr
   body { background: #fff; }
   .doc { box-shadow: none; padding: 0; }
 }
+
+/* screen language switch */
+.lang-switch { display: inline-flex; gap: 4px; background: var(--mist); border-radius: 999px; padding: 3px; }
+.lang-switch button { border: 0; background: transparent; border-radius: 999px; padding: 6px 12px; font-size: 14px; color: var(--ink-2); min-height: 34px; }
+.lang-switch button.on { background: var(--card); color: var(--peacock-2); font-weight: 700; box-shadow: var(--shadow); }
+body.elder-app .lang-switch button { font-size: 16px; padding: 8px 14px; }
+html[lang="kn"] h1, html[lang="kn"] h2, html[lang="kn"] h3, html[lang="kn"] .result-word { font-family: "Noto Sans Kannada", var(--sans); font-weight: 700; letter-spacing: 0; }
+html[lang="hi"] h1, html[lang="hi"] h2, html[lang="hi"] h3, html[lang="hi"] .result-word { font-family: "Noto Sans Devanagari", var(--sans); font-weight: 700; letter-spacing: 0; }

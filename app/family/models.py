@@ -48,6 +48,9 @@ class Parent(SQLModel, table=True):
     interests: list[str] = Field(default_factory=list, sa_column=Column(JSON))
     memory_check_every_days: int = 120
     is_demo: bool = False
+    user_id: str | None = Field(default=None, index=True)  # the elder's own login (User.id)
+    age: int | None = None
+    calls_paused: bool | None = False  # the elder paused all calls (nullable so old databases get the column)
 
 
 class CheckIn(SQLModel, table=True):
@@ -102,3 +105,82 @@ class Appointment(SQLModel, table=True):
     place: str = ""
     status: str = "requested"  # requested | confirmed
     source: str = ""  # who asked: "family call", "family app"
+
+
+# ---------------------------------------------------------------- people, circles, schedules, history
+# A User is anyone who logs in (elder, family member, clinician). The Parent row above is the elder's care
+# profile; Parent.user_id links it to the elder's own login. A Circle is the family's shared space around one
+# Parent: the elder owns it, family members join it, and a clinic joins only when the elder agrees.
+
+
+class User(SQLModel, table=True):
+    id: str = Field(default_factory=_id, primary_key=True)
+    created_at: datetime = Field(default_factory=utcnow)
+    name: str
+    role: str  # elder | family | clinic
+    smriti_id: str = Field(index=True, unique=True)  # short shareable ID, e.g. SM-RAVI42 (also shown as a QR)
+    phone_hash: str | None = Field(default=None, index=True)
+    phone_last4: str | None = None
+    age: int | None = None
+    org: str = ""  # clinic or care partner name
+    title: str = ""  # "Dr.", "son", ...
+    language: str = "en"
+    is_demo: bool = False
+
+
+class Contact(SQLModel, table=True):
+    """Owner added someone by phone number or Smriti ID. Mutual when both added each other."""
+
+    id: int | None = Field(default=None, primary_key=True)
+    owner_id: str = Field(foreign_key="user.id", index=True)
+    contact_user_id: str | None = Field(default=None, foreign_key="user.id", index=True)
+    label: str = ""
+    created_at: datetime = Field(default_factory=utcnow)
+
+
+class Circle(SQLModel, table=True):
+    id: str = Field(default_factory=_id, primary_key=True)
+    name: str
+    parent_id: str = Field(foreign_key="parent.id", index=True)
+    created_at: datetime = Field(default_factory=utcnow)
+
+
+class CircleMember(SQLModel, table=True):
+    id: int | None = Field(default=None, primary_key=True)
+    circle_id: str = Field(foreign_key="circle.id", index=True)
+    user_id: str = Field(foreign_key="user.id", index=True)
+    role: str  # elder | family | clinic
+    status: str = "pending"  # pending (waits for the elder) | active | declined | removed
+    invited_by: str | None = None
+    created_at: datetime = Field(default_factory=utcnow)
+    decided_at: datetime | None = None
+
+
+class Schedule(SQLModel, table=True):
+    """A call that repeats: 'every day at 8 pm, ask Appa: did you take your BP tablet?'"""
+
+    id: str = Field(default_factory=_id, primary_key=True)
+    parent_id: str = Field(foreign_key="parent.id", index=True)
+    created_by: str | None = Field(default=None, foreign_key="user.id")
+    kind: str = "checkin"  # checkin | memory
+    label: str = "Check-in"
+    days: list[int] = Field(default_factory=list, sa_column=Column(JSON))  # 0=Mon..6=Sun; empty = every day
+    time: str = "20:00"  # local IST, HH:MM
+    questions: list[str] = Field(default_factory=list, sa_column=Column(JSON))
+    active: bool = True
+    last_run_at: datetime | None = None
+    created_at: datetime = Field(default_factory=utcnow)
+
+
+class Activity(SQLModel, table=True):
+    """What happened, for the history in every app (and the live feed)."""
+
+    id: int | None = Field(default=None, primary_key=True)
+    parent_id: str = Field(foreign_key="parent.id", index=True)
+    at: datetime = Field(default_factory=utcnow, index=True)
+    actor_id: str | None = None
+    actor_name: str = "Smriti"
+    kind: str = "info"  # call | flag | review | circle | schedule | settings | visit
+    text: str
+    ref: str | None = None  # checkin id / session id / schedule id
+    audience: str = "all"  # all | clinic (safety items never reach the family)

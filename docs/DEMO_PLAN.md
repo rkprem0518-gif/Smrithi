@@ -3,6 +3,26 @@
 The goal: 5 minutes in which the judges *feel* the product, see that it is real, and see why it matters to Bolna.
 Built on top of [BLUEPRINT.md](BLUEPRINT.md). If this plan and the blueprint disagree, the blueprint wins.
 
+## 0. Run the demo: three apps, three ports, one server
+
+```bash
+.venv/Scripts/python scripts/seed_family.py --reset   # fresh sample family: Appa, Ravi, Priya, Dr. Meera
+.venv/Scripts/python scripts/run_demo.py              # one process, three ports, live sync between them
+```
+
+| Port | App | Demo login | Use it for |
+|---|---|---|---|
+| http://localhost:8000/smriti.html | Family | Ravi (son) or Priya (daughter) | Today, timeline, calendar, memory, reports, schedules, family circle, history |
+| http://localhost:8001 | Elder ("For Appa") | Raghunath Rao (Appa) | Big-text page: say yes to new members, call me now, my language, what is shared, pause calls |
+| http://localhost:8002 | Care team (clinic) | Dr. Meera Iyer | Patients, review queue, approve → Smriti calls the family, behind the call (costs) |
+
+- **Separate logins:** each port has its own login cookie, so all three can be open side by side in one browser.
+- **Live sync:** anything done in one app shows up in the others within a second.
+- **Screen language:** English · हिंदी · ಕನ್ನಡ, switched in the sidebar or on the login card.
+- **Ports:** set them in `.env` with `FAMILY_PORT`, `ELDER_PORT` and `CLINIC_PORT`.
+- **Offline backup with no real calls:** run with `DEMO_MODE=1`. Calls are then simulated and Bolna is never contacted.
+- **Calls:** real calls only happen when someone presses a call button in live mode. Automatic scheduled calls are off unless `SCHEDULER_ENABLED=1`, and even then only in demo mode.
+
 ---
 
 ## 1. The story in one breath
