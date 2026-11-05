@@ -109,7 +109,7 @@ orientation:
 
 # Yes/no parsing for consent and the "is anyone helping you?" question.
 # "ji"/"जी" is an honorific ("नहीं जी" = no); it only counts as yes when said on its own (see parse_yes_no).
-yes_words: [haan, han, haanji, hanji, yes, yeah, bilkul, theek, thik, ok, okay, zaroor, हाँ, हां, जी हाँ, ठीक, बिल्कुल, ಹೌದು, ಹೂಂ, ಸರಿ, ಆಯ್ತು, haudu, aytu]
+yes_words: [haan, han, haanji, hanji, yes, yeah, bilkul, theek, thik, ok, okay, zaroor, हाँ, हां, जी हाँ, ठीक, बिल्कुल, ಹೌದು, ಹೂಂ, ಸರಿ, ಆಯ್ತು, ಪರವಾಗಿಲ್ಲ, ಓಕೆ, haudu, aytu, paravagilla]
 # "ना"/"na" is left out on purpose: it is usually a tag particle ("बता रही थी ना").
 no_words: [nahi, nahin, nai, no, nope, koi nahi, akela, akele, akeli, अकेले, अकेला, अकेली, नहीं, नही, नई, नो, ಇಲ್ಲ, ಇಲ್ಲಾ, ಬೇಡ, illa, beda]
 

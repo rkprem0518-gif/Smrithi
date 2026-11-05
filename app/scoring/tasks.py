@@ -80,6 +80,14 @@ NUMBER_WORDS: dict[str, int] = {
     t.key: n for n, words in _NUMBER_WORDS_RAW.items() for w in words for t in tokenize(w)
 }
 CARDINAL_KEYS = frozenset(t.key for w in _CARDINALS for t in tokenize(w))
+# "<ordinal> year" means a year of college (heard on the first live call: "सेकंड ईयर में पढ़ रहा हूं").
+COLLEGE_YEAR_ORDINALS: dict[str, int] = {
+    t.key: n
+    for n, words in {1: ["first", "फर्स्ट", "ಫಸ್ಟ್"], 2: ["second", "सेकंड", "सेकेंड", "ಸೆಕೆಂಡ್"],
+                     3: ["third", "थर्ड", "ಥರ್ಡ್", "final", "फाइनल", "ಫೈನಲ್"], 4: ["fourth", "फोर्थ", "ಫೋರ್ತ್"]}.items()
+    for w in words for t in tokenize(w)
+}
+YEAR_WORDS = frozenset(t.key for w in ["year", "years", "ईयर", "इयर", "ಇಯರ್"] for t in tokenize(w))
 _ABBREV_DOT = re.compile(r"(?<=\S)\.(?=\S)")
 
 PLACE_QUESTION = (
@@ -227,6 +235,11 @@ def parse_schooling_years(turns: list[Turn], cfg: ScoringConfig) -> int | None:
     "I don't know" stays unknown.
     """
     weak: int | None = None
+    for t in user_turns(turns):
+        toks = tokenize(_ABBREV_DOT.sub("", t.text))
+        for a, b in zip(toks, toks[1:], strict=False):
+            if a.key in COLLEGE_YEAR_ORDINALS and b.key in YEAR_WORDS:
+                return 12 + COLLEGE_YEAR_ORDINALS[a.key]  # "second year" of college, after 12 years of school
     for t in user_turns(turns):
         for tok in tokenize(_ABBREV_DOT.sub("", t.text)):
             m = re.match(r"^(\d+)(st|nd|rd|th|vi|vin|va)?$", tok.raw)

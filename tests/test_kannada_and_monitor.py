@@ -102,3 +102,42 @@ def test_report_has_kannada_text(cfg) -> None:
 
     for table in (report.OUTCOME_LABEL, report.NEXT_STEP, report.INVALID_REASONS):
         assert all("kn" in v for v in table.values())
+
+
+# ---------------------------------------------------------------- first live call (5 Nov 2026)
+@pytest.mark.parametrize(
+    ("answer", "years"),
+    [("सेकंड ईयर में पढ़ रहा हूं", 14), ("second year BA", 14), ("फर्स्ट ईयर", 13), ("ಸೆಕೆಂಡ್ ಇಯರ್", 14),
+     ("दूसरी कक्षा", 2)],
+)
+def test_college_year_answers(cfg, answer, years) -> None:
+    assert tasks.parse_schooling_years([user(answer)], cfg) == years
+
+
+def test_hippo_heard_as_happy(cfg) -> None:
+    assert words("हैप्पी हिप्पो", cfg.animal_lexicon, cfg) == ["hippopotamus", "hippopotamus"]
+
+
+def test_kannada_paravagilla_is_yes(cfg) -> None:
+    assert tasks.parse_yes_no("ಪರವಾಗಿಲ್ಲ", cfg) is True
+
+
+def test_no_english_online_check_and_welcome_asks_a_question() -> None:
+    for lang in ("hi", "kn", "en"):
+        payload = build_agent_payload(Settings(_env_file=None), agent_template(), agent_prompt(), language=lang)
+        task = payload["agent_config"]["tasks"][0]
+        assert task["task_config"]["check_if_user_online"] is False
+        assert payload["agent_config"]["agent_welcome_message"].rstrip().endswith("?")
+
+
+def test_english_agent_variant_and_fallback() -> None:
+    payload = build_agent_payload(Settings(_env_file=None), agent_template(), agent_prompt(), language="en")
+    tools = payload["agent_config"]["tasks"][0]["tools_config"]
+    assert tools["transcriber"]["language"] == "en" and tools["synthesizer"]["provider_config"]["language"] == "en"
+    assert Settings(_env_file=None, bolna_agent_id="hi-1").agent_id_for("en") == "hi-1"
+    assert Settings(_env_file=None, bolna_agent_id="hi-1", bolna_agent_id_en="en-1").agent_id_for("en") == "en-1"
+
+
+def test_prompt_has_every_line_in_all_three_languages() -> None:
+    prompt = agent_prompt()
+    assert prompt.count("- KN:") >= 9 and prompt.count("- HI:") >= 9 and prompt.count("- EN:") >= 9

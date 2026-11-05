@@ -25,8 +25,8 @@ async def main() -> int:
     parser.add_argument("--dry-run", action="store_true", help="print the payload and exit")
     parser.add_argument("--update", action="store_true", help="update the existing agent (PUT)")
     parser.add_argument("--agent-id", default=None, help="agent to update (default: BOLNA_AGENT_ID)")
-    parser.add_argument("--language", choices=["hi", "kn"], default="hi",
-                        help="hi = Hindi/English agent (BOLNA_AGENT_ID); kn = Kannada agent (BOLNA_AGENT_ID_KN)")
+    parser.add_argument("--language", choices=["hi", "kn", "en"], default="hi",
+                        help="hi = BOLNA_AGENT_ID, kn = BOLNA_AGENT_ID_KN, en = BOLNA_AGENT_ID_EN")
     parser.add_argument("--with-keywords", action="store_true",
                         help="add the 30 list words as transcriber keywords (format unverified, see TODO)")
     args = parser.parse_args()
@@ -34,7 +34,7 @@ async def main() -> int:
     settings = get_settings()
     payload = build_agent_payload(settings, agent_template(), agent_prompt(), scoring_config(), args.with_keywords,
                                   language=args.language)
-    env_key = "BOLNA_AGENT_ID_KN" if args.language == "kn" else "BOLNA_AGENT_ID"
+    env_key = {"kn": "BOLNA_AGENT_ID_KN", "en": "BOLNA_AGENT_ID_EN"}.get(args.language, "BOLNA_AGENT_ID")
 
     if args.dry_run:
         print(json.dumps(payload, ensure_ascii=False, indent=2))
@@ -49,9 +49,10 @@ async def main() -> int:
     try:
         async with BolnaClient.from_settings(settings) as client:
             if args.update:
-                agent_id = args.agent_id or settings.agent_id_for(args.language)
+                # Only this language's own agent: never fall back, or an update could overwrite another language.
+                agent_id = args.agent_id or getattr(settings, env_key.lower())
                 if not agent_id:
-                    print("--update needs BOLNA_AGENT_ID in .env or --agent-id.", file=sys.stderr)
+                    print(f"--update needs {env_key} in .env or --agent-id.", file=sys.stderr)
                     return 2
                 result = await client.update_agent(agent_id, payload)
                 print(f"Updated agent {agent_id}: {result}")

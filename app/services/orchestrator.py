@@ -170,7 +170,7 @@ async def create_session(
     agent_id = settings.agent_id_for(language)
     if not agent_id:
         _touch(db, session, Status.FAILED, error="No Bolna agent is configured for this language.")
-        raise SessionError("Kannada calls are not set up yet (BOLNA_AGENT_ID_KN is missing).", 503)
+        raise SessionError("Calls in this language are not set up yet (no Bolna agent configured for it).", 503)
     async with BolnaClient.from_settings(settings) as client:
         try:
             if mode == "web":

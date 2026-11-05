@@ -1,5 +1,5 @@
 {
-  "_comment": "Smriti Bolna agent template. scripts/create_agent.py sends agent_config + the prompt in prompts/smriti_agent.md to POST /v2/agent (or PUT /v2/agent/{id} with --update). It overrides webhook_url and task_config.call_terminate from .env. smriti_markers is NOT sent to Bolna: the segmenter uses it to split the transcript into tasks. Provider/model names verified against bolna.ai/docs on 2026-10-30. language_variants: overrides applied by create_agent.py --language kn (one agent per STT/TTS language).",
+  "_comment": "Smriti Bolna agent template. scripts/create_agent.py sends agent_config + the prompt in prompts/smriti_agent.md to POST /v2/agent (or PUT /v2/agent/{id} with --update). It overrides webhook_url and task_config.call_terminate from .env. smriti_markers is NOT sent to Bolna: the segmenter uses it to split the transcript into tasks. language_variants: overrides applied by create_agent.py --language kn|en (one agent per STT/TTS language). check_if_user_online is off: Bolna's built-in prompt is English-only ('are you still there'), and every welcome message ends with a question so the person answers straight away. Provider/model names verified against bolna.ai/docs on 2026-10-30.",
   "smriti_markers": {
     "hearing": [
       "पहला काम",
@@ -85,7 +85,7 @@
   },
   "agent_config": {
     "agent_name": "Smriti memory check (pilot)",
-    "agent_welcome_message": "नमस्ते! मैं स्मृति बोल रही हूँ। Namaste, this is Smriti.",
+    "agent_welcome_message": "नमस्ते! मैं स्मृति बोल रही हूँ, आपके परिवार की ओर से। क्या आप मुझे ठीक से सुन पा रहे हैं?",
     "webhook_url": null,
     "call_summary_enabled": false,
     "tasks": [
@@ -147,8 +147,7 @@
           "call_terminate": 480,
           "backchanneling": false,
           "number_of_words_for_interruption": 3,
-          "check_if_user_online": true,
-          "trigger_user_online_message_after": 15,
+          "check_if_user_online": false,
           "call_hangup_message": "धन्यवाद, नमस्ते।"
         }
       }
@@ -157,10 +156,17 @@
   "language_variants": {
     "kn": {
       "agent_name_suffix": " - Kannada",
-      "agent_welcome_message": "ನಮಸ್ಕಾರ! ನಾನು ಸ್ಮೃತಿ. Namaskara, this is Smriti.",
+      "agent_welcome_message": "ನಮಸ್ಕಾರ! ನಾನು ಸ್ಮೃತಿ, ನಿಮ್ಮ ಮನೆಯವರ ಕಡೆಯಿಂದ ಕರೆ ಮಾಡುತ್ತಿದ್ದೇನೆ. ನನ್ನ ಮಾತು ಸರಿಯಾಗಿ ಕೇಳಿಸುತ್ತಿದೆಯಾ?",
       "transcriber_language": "kn",
       "synthesizer_language": "kn",
       "call_hangup_message": "ಧನ್ಯವಾದಗಳು, ನಮಸ್ಕಾರ."
+    },
+    "en": {
+      "agent_name_suffix": " - English",
+      "agent_welcome_message": "Hello! This is Smriti, calling on behalf of your family. Can you hear me clearly?",
+      "transcriber_language": "en",
+      "synthesizer_language": "en",
+      "call_hangup_message": "Thank you, goodbye."
     }
   }
 }

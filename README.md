@@ -13,10 +13,10 @@ Built on [Bolna](https://bolna.ai) for the Bolna Voice AI Buildathon 2026. Inspi
 | | |
 |---|---|
 | Hosted demo | _NEXT: deploy link goes here (see checklist below)_ |
-| Call me (live agent) | _NEXT: number goes here once Bolna credits arrive_ |
+| Live agent on Bolna | Three agents (Hindi, Kannada, English) are set up on Bolna; the first real Hindi call ran end to end on 5 Nov 2026 (see *Live status*) |
 | Offline, on your laptop | 2 minutes, no keys: see the quickstart below |
 
-The offline demo runs the **real scoring engine** on four realistic Hinglish calls (made-up, no real people) and lets you simulate a full call: Start → Live → Report → Reviewer queue.
+The offline demo runs the **real scoring engine** on five realistic sample calls (four Hinglish, one Kannada; made-up, no real people) and lets you simulate a full call: Start → Live → Report → Reviewer queue. The web UI is in English, हिन्दी and ಕನ್ನಡ.
 
 ## Offline quickstart (Windows or Linux/macOS, zero keys)
 
@@ -109,8 +109,8 @@ Scoring is **deterministic and explainable**: Devanagari/Kannada → Latin trans
 | Executions (`GET /executions/{id}`): status, transcript, `telephony_data.recording_url` | [`app/services/bolna_client.py`](app/services/bolna_client.py) |
 | **Webhooks** (`agent_config.webhook_url`, token-checked) + a polling fallback | [`app/api/webhook.py`](app/api/webhook.py), [`app/services/poller.py`](app/services/poller.py) |
 | Account info (`GET /user/me`: wallet, concurrency) | [`scripts/check_live.py`](scripts/check_live.py) |
-| Indian-language voice stack: **Sarvam Saaras v4** STT (`hi`), **Sarvam Bulbul v3** TTS, GPT-4.1-mini LLM, Plivo telephony | [`config/agent.json`](config/agent.json) |
-| Call controls: `hangup_after_silence` raised to 25 s for the 1-minute animal task, `call_terminate` = `MAX_CALL_MINUTES` | [`app/services/agent_builder.py`](app/services/agent_builder.py) |
+| Indian-language voice stack: **Sarvam Saaras v4** STT and **Sarvam Bulbul v3** TTS in `hi`, `kn` and `en` (one agent per language), GPT-4.1-mini LLM, Plivo telephony | [`config/agent.json`](config/agent.json) |
+| Call controls: `hangup_after_silence` raised to 25 s for the 1-minute animal task, `call_terminate` = `MAX_CALL_MINUTES`, `check_if_user_online` off (its built-in prompt is English-only) with a welcome message that asks a question in the call's language | [`app/services/agent_builder.py`](app/services/agent_builder.py) |
 | Web Call SDK (`@bolna/web-call`, backend-minted `POST /web-call/session`) - optional | [`app/web/webcall.js`](app/web/webcall.js) |
 
 ## Live setup (when you have Bolna credits)
@@ -119,20 +119,37 @@ Scoring is **deterministic and explainable**: Devanagari/Kannada → Latin trans
 2. Review the agent without spending anything: `python scripts/create_agent.py --dry-run`
 3. Create it: `python scripts/create_agent.py` → copy the printed id into `.env` as `BOLNA_AGENT_ID`.
 4. `python scripts/check_live.py` → prints wallet balance, concurrency, confirms the agent exists, and says **READY** or what is missing.
-5. Set `DEMO_MODE=0`. Call your own phone end to end: `python scripts/test_call.py +91XXXXXXXXXX`
-   - **Kannada:** `python scripts/create_agent.py --language kn` → put the id in `BOLNA_AGENT_ID_KN`, then `python scripts/test_call.py +91XXXXXXXXXX --language kn`. Kannada needs its own agent because the STT/TTS language is fixed per agent (Sarvam `kn`).
-6. For webhooks, `PUBLIC_BASE_URL` must be a public https URL (deploy, or `cloudflared tunnel --url http://localhost:8000`), then `python scripts/create_agent.py --update`. Without it the poller fetches results every 10 s.
+5. Create the other languages' agents the same way. Each language needs its own agent because the speech-to-text and voice language is fixed per Bolna agent:
+   - **Kannada:** `python scripts/create_agent.py --language kn` → `BOLNA_AGENT_ID_KN`
+   - **English:** `python scripts/create_agent.py --language en` → `BOLNA_AGENT_ID_EN` (if unset, English calls use the Hindi agent)
+   - After changing the prompt or `config/agent.json`, push it to the existing agents with `--update` (plus `--language kn` / `--language en`).
+6. Set `DEMO_MODE=0`. Call your own phone end to end: `python scripts/test_call.py +91XXXXXXXXXX --language hi|kn|en`
+   - **Trial accounts** can only call **verified numbers**: add the number under verified numbers in the Bolna dashboard first, or Bolna answers `400 Trial accounts can only make calls to verified phone numbers`.
+7. For webhooks, `PUBLIC_BASE_URL` must be a public https URL (deploy, or `cloudflared tunnel --url http://localhost:8000`), then `python scripts/create_agent.py --update`. Without it the poller fetches results every 10 s.
 
 In live mode the app refuses to start without `BOLNA_API_KEY` and `BOLNA_AGENT_ID`, or with the example `change-me` secrets, with a message saying what to set. Generate secrets with `python -c "import secrets; print(secrets.token_urlsafe(24))"`.
 
-### NEXT (needs credits)
+### Live status
 
-Everything below is implemented and tested against mocks; it is only waiting on keys.
+The first real call ran on **5 November 2026**: a 5-minute Hindi call placed through Bolna to a team member's verified phone. All seven task phrases were found in Bolna's transcript, the poller picked up the result, and the report was scored in seconds (5 min 10 s call; cost reported by Bolna as 33, which is most likely cents).
 
-- [ ] Fill `.env` → `check_live.py` → `create_agent.py` → `test_call.py` to my phone
-- [ ] Read the first real transcript; adjust `segmenter.py`/marker phrases if Bolna's transcript format or the LLM's wording differs from the fixtures
-- [ ] Confirm the `TODO(bolna)` items below with a real call
-- [ ] Tune the Hindi tasks with a few web calls; mini pilot with 5–10 elders, logged in [docs/pilot_log.md](docs/pilot_log.md)
+What the real transcript taught us, and what we changed:
+
+| Seen on the live call | Fix |
+|---|---|
+| Bolna's "are you still there?" prompt fired in **English** on a Hindi call | `check_if_user_online` off; every welcome message now ends with a question in the call's language |
+| "सेकंड ईयर में पढ़ रहा हूं" (2nd year of college) was read as 2 years of school | "<ordinal> year" now means college: 12 + n years (higher schooling band) |
+| "Hippo" was transcribed as हैप्पी and not counted | added हिप्पो / हैप्पी to the animal lexicon |
+| English answers on the Hindi agent were transcribed in Devanagari ("यस, आई एम देयर") | a dedicated **English agent** (English STT and voice) |
+| An answer split over two turns ("8" … "एक। छः।") | already handled: the hearing check joins split answers |
+
+### NEXT
+
+- [x] Fill `.env` → `check_live.py` → `create_agent.py` → `test_call.py` to my phone
+- [x] Read the first real transcript and fix what it broke (table above)
+- [ ] Live test calls in Kannada and English
+- [ ] Confirm the remaining `TODO(bolna)` items below with real calls
+- [ ] Mini pilot with 5–10 elders, logged in [docs/pilot_log.md](docs/pilot_log.md) (needs more than the $5 trial credit and numbers verified on the trial plan)
 - [ ] Deploy with `DEMO_MODE=0` (Render blueprint in [`render.yaml`](render.yaml)), set `PUBLIC_BASE_URL`, `create_agent.py --update` to register the webhook, update "Try it" above
 - [ ] Optional: web call in the browser
 
@@ -144,7 +161,7 @@ Everything below is implemented and tested against mocks; it is only waiting on 
 | Where is `user_data` echoed back in executions/webhooks (`context_details.recipient_data`?) | `api/webhook.py` | match by `execution_id` (phone calls always have it) |
 | Format of `transcriber.keywords` for Sarvam (biasing the 30 list words) | `agent_builder.py` | off unless `--with-keywords` |
 | Is `telephony_data.recording_url` fetchable by a third party (Deepgram) without auth? | `asr_fallback.py` | fluency counted over the whole segment |
-| Do English calls sound right with the Sarvam `hi` STT + Bulbul voice, or do we need a second agent? | `config/agent.json` | Hinglish is the main path |
+| Does the English agent (Sarvam `en` STT + Bulbul voice) handle Indian English well? | `config/agent.json` → `language_variants.en` | Deepgram `nova-3` English as the transcriber |
 | Webhook retries / signing (not documented) | `api/webhook.py` | token in the URL + always re-fetch + poller |
 | Does Sarvam Saaras v4 + Bulbul v3 voice `suhani` work well with `language: kn`? | `config/agent.json` → `language_variants.kn` | pick another Bulbul voice |
 | `gpt-4.1-mini` is listed as previous-generation on Bolna's OpenAI page | `config/agent.json` | switch to `gpt-5.4-mini` (requires `temperature: 1`) if creation fails |
@@ -160,11 +177,11 @@ app/
   api/               thin routes: sessions, webhook, review, demo, health
   services/          I/O: bolna_client, orchestrator, poller, segmenter, asr_fallback, report
   scoring/           pure functions: normalize, matching, tasks, outcome, engine
-  web/               static pages + i18n (hi/en)
+  web/               static pages + i18n (en/hi/kn)
 config/              scoring.yaml, wordlists.yaml, animals.yaml, agent.json
 prompts/             smriti_agent.md (voice agent script with marker phrases)
 scripts/             create_agent, check_live, test_call, seed_demo
-fixtures/            4 Hinglish calls: normal, uncertain, refer, invalid_hearing
+fixtures/            5 sample calls: normal, uncertain, refer, invalid_hearing (Hinglish), kannada
 tests/               scoring, API, Bolna client (respx)
 docs/                architecture, scoring spec, ethics, pilot log, deck notes
 ```
@@ -185,7 +202,7 @@ docs/                architecture, scoring spec, ethics, pilot log, deck notes
 - Speech recognition of older voices, regional accents and noisy lines will cause misses; fuzzy matching helps but cannot fix everything. INVALID exists to catch bad calls, and humans review the rest.
 - The animal-naming minute is not timed precisely: Bolna's transcript has no per-turn timestamps, so we count the whole segment (`experimental_timing: true`) unless the optional Deepgram pass over the recording is enabled.
 - The town/village answer is accepted if given; it cannot be verified automatically.
-- Hindi, Kannada and English. The web UI itself is in English and Hindi; Kannada reports show Kannada word lists with English labels.
+- Hindi, Kannada and English only, for both the calls and the web UI.
 
 ## Roadmap
 
