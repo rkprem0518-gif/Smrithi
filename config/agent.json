@@ -144,6 +144,8 @@
         },
         "task_config": {
           "hangup_after_silence": 40,
+          "hangup_after_LLMCall": true,
+          "call_cancellation_prompt": "End the call only when the assistant has just said its final goodbye of the memory check: the closing lines after the last question, the goodbye after stopping because the person was upset, or the goodbye after the person declined. Do not end the call during the tasks, even if the person is silent, unclear, or says a greeting or goodbye-like word while answering.",
           "call_terminate": 480,
           "backchanneling": false,
           "number_of_words_for_interruption": 3,

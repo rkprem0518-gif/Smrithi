@@ -139,6 +139,9 @@ What the real transcript taught us, and what we changed:
 |---|---|
 | Bolna's "are you still there?" prompt fired in **English** on a Hindi call | `check_user_online_message` set per language ("क्या आप मुझे सुन पा रहे हैं?", "ನನ್ನ ಮಾತು ಕೇಳಿಸುತ್ತಿದೆಯಾ?", "Can you hear me?"), and every welcome message ends with a question |
 | The first Kannada call hung up after 25 s of "silence": no transcript had arrived yet (the first transcript took ~26 s on the Hindi call) | silence timeout raised to 40 s; the localized online check re-prompts at 12 s instead of letting the call drop |
+| Kannada call from a moving vehicle (noisy line): the hearing check got 0/3 | correct behaviour: the call was marked **INVALID (hearing check failed)**, i.e. "retest on a clearer line", instead of giving a misleading memory score |
+| On that call the agent said a hearing-check retry and the next digit string in one breath, leaving no time to answer the retry | the prompt now requires one digit string per message, and a wait after each one, retries included |
+| The call did not end after the goodbye; the agent kept answering "ನಮಸ್ಕಾರ" until the person hung up | `hangup_after_LLMCall` on (Bolna's "hang up using a prompt") with a prompt that ends the call after the final goodbye; the agent prompt also says nothing more after the goodbye |
 | "सेकंड ईयर में पढ़ रहा हूं" (2nd year of college) was read as 2 years of school | "<ordinal> year" now means college: 12 + n years (higher schooling band) |
 | "Hippo" was transcribed as हैप्पी and not counted | added हिप्पो / हैप्पी to the animal lexicon |
 | English answers on the Hindi agent were transcribed in Devanagari ("यस, आई एम देयर") | a dedicated **English agent** (English STT and voice) |
@@ -148,7 +151,8 @@ What the real transcript taught us, and what we changed:
 
 - [x] Fill `.env` → `check_live.py` → `create_agent.py` → `test_call.py` to my phone
 - [x] Read the first real transcript and fix what it broke (table above)
-- [ ] Live test calls in Kannada and English
+- [x] Live test call in Kannada (noisy line, correctly marked INVALID)
+- [ ] Live test call in English, and a Kannada call on a quiet line
 - [ ] Confirm the remaining `TODO(bolna)` items below with real calls
 - [ ] Mini pilot with 5–10 elders, logged in [docs/pilot_log.md](docs/pilot_log.md) (needs more than the $5 trial credit and numbers verified on the trial plan)
 - [ ] Deploy with `DEMO_MODE=0` (Render blueprint in [`render.yaml`](render.yaml)), set `PUBLIC_BASE_URL`, `create_agent.py --update` to register the webhook, update "Try it" above

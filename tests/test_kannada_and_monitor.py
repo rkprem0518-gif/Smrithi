@@ -146,3 +146,18 @@ def test_english_agent_variant_and_fallback() -> None:
 def test_prompt_has_every_line_in_all_three_languages() -> None:
     prompt = agent_prompt()
     assert prompt.count("- KN:") >= 9 and prompt.count("- HI:") >= 9 and prompt.count("- EN:") >= 9
+
+
+# ---------------------------------------------------------------- second live call (Kannada, noisy, 5 Nov 2026)
+def test_agent_hangs_up_after_goodbye() -> None:
+    for lang in ("hi", "kn", "en"):
+        payload = build_agent_payload(Settings(_env_file=None), agent_template(), agent_prompt(), language=lang)
+        tc = payload["agent_config"]["tasks"][0]["task_config"]
+        assert tc["hangup_after_LLMCall"] is True
+        assert "goodbye" in tc["call_cancellation_prompt"]
+
+
+def test_prompt_keeps_digit_strings_in_separate_messages() -> None:
+    prompt = agent_prompt()
+    assert "NEVER put two digit strings" in prompt
+    assert "say nothing more" in prompt
