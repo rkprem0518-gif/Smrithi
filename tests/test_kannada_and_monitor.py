@@ -161,3 +161,48 @@ def test_prompt_keeps_digit_strings_in_separate_messages() -> None:
     prompt = agent_prompt()
     assert "NEVER put two digit strings" in prompt
     assert "say nothing more" in prompt
+
+
+# ---------------------------------------------------------------- Hinglish / Kanglish and language choice
+@pytest.mark.parametrize(
+    ("form", "text", "canonical"),
+    [("A", "ಹೌಸ್", "ghar"), ("A", "ವಾಟರ್", "paani"), ("C", "ಬಾಕ್ಸ್", "dibba"), ("B", "ಮ್ಯಾಂಗೋ", "aam"), ("A", "हाउस", "ghar")],
+)
+def test_english_words_in_indic_script(cfg, form, text, canonical) -> None:
+    assert words(text, cfg.form_lexicons[form], cfg) == [canonical]
+
+
+def test_kanglish_and_hinglish_animals_days_digits(cfg) -> None:
+    assert words("ಡಾಗ್ ಕ್ಯಾಟ್ ಲಯನ್ ಟೈಗರ್ ನಾಯಿ", cfg.animal_lexicon, cfg) == ["dog", "cat", "lion", "tiger", "dog"]
+    assert tasks.digit_sequence("फोर सेवन टू") == "472"
+    assert tasks.digit_sequence("ಫೋರ್ ಸೆವೆನ್ ಟೂ") == "472"
+    assert words("थर्सडे", cfg.day_lexicon, cfg) == ["3"]
+    assert words("ಥರ್ಸ್‌ಡೇ", cfg.day_lexicon, cfg) == ["3"]
+    assert tasks.parse_yes_no("ಯೆಸ್", cfg) is True
+
+
+def test_multilingual_agent_payload() -> None:
+    payload = build_agent_payload(Settings(_env_file=None), agent_template(), agent_prompt(), multilingual=True)
+    tools = payload["agent_config"]["tasks"][0]["tools_config"]
+    ml = tools["multilingual_config"]
+    assert ml["enabled"] is True and ml["active_language"] == "hi"
+    assert set(ml["languages"]) == {"hi", "kn", "en"}
+    for lang, entry in ml["languages"].items():
+        assert entry["transcriber"]["language"] == lang
+        assert entry["synthesizer"]["provider"] == "sarvam"
+        assert entry["synthesizer"]["provider_config"]["language"] == lang
+        assert entry["welcome_message"].rstrip().endswith("?")
+    assert payload["agent_config"]["tasks"][0]["task_config"]["noise_cancellation_level"] == 85
+
+
+def test_multilingual_user_data_and_agent_choice() -> None:
+    from app.models import Session as Sess
+    from app.services.orchestrator import build_user_data
+
+    s = Sess(word_form="A", language="kn")
+    data = build_user_data(s, multilingual=True)
+    assert data["agent_language"] == "kn"
+    assert data["word_list_kn"].startswith("ಮನೆ") and data["word_list_hi"].startswith("घर")
+    assert "agent_language" not in build_user_data(s)
+    st = Settings(_env_file=None, bolna_agent_id="multi", bolna_agent_id_kn="kn-1", bolna_multilingual=True)
+    assert st.agent_id_for("kn") == "multi"

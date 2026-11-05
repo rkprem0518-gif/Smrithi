@@ -25,6 +25,9 @@ async def main() -> int:
     parser.add_argument("--dry-run", action="store_true", help="print the payload and exit")
     parser.add_argument("--update", action="store_true", help="update the existing agent (PUT)")
     parser.add_argument("--agent-id", default=None, help="agent to update (default: BOLNA_AGENT_ID)")
+    parser.add_argument("--multilingual", action="store_true",
+                        help="one agent for Hindi, Kannada and English that asks which language to speak "
+                             "(BOLNA_AGENT_ID; set BOLNA_MULTILINGUAL=1)")
     parser.add_argument("--language", choices=["hi", "kn", "en"], default="hi",
                         help="hi = BOLNA_AGENT_ID, kn = BOLNA_AGENT_ID_KN, en = BOLNA_AGENT_ID_EN")
     parser.add_argument("--with-keywords", action="store_true",
@@ -33,7 +36,7 @@ async def main() -> int:
 
     settings = get_settings()
     payload = build_agent_payload(settings, agent_template(), agent_prompt(), scoring_config(), args.with_keywords,
-                                  language=args.language)
+                                  language=args.language, multilingual=args.multilingual)
     env_key = {"kn": "BOLNA_AGENT_ID_KN", "en": "BOLNA_AGENT_ID_EN"}.get(args.language, "BOLNA_AGENT_ID")
 
     if args.dry_run:

@@ -8,37 +8,37 @@
 
 forms:
   A:
-    - {id: ghar,    hi: घर,      en: house, kn: ಮನೆ,  variants: [gharr, ghr, makaan, मकान, home, हाउस, होम, mane, ಮನೆಗಳು]}
-    - {id: paani,   hi: पानी,    en: water, kn: ನೀರು,  variants: [pani, paanee, panee, jal, जल, वॉटर, वाटर, neeru]}
-    - {id: ped,     hi: पेड़,     en: tree, kn: ಮರ,   variants: [perh, pedh, पेड, vriksh, पेड़ों, ट्री, mara]}
-    - {id: roti,    hi: रोटी,    en: bread, kn: ರೊಟ್ಟಿ,  variants: [rotee, rooti, chapati, chapatti, चपाती, रोटियाँ, ब्रेड, rotti]}
-    - {id: kitaab,  hi: किताब,   en: book, kn: ಪುಸ್ತಕ,   variants: [kitab, kitaabein, kitabein, pustak, पुस्तक, बुक, pustaka, ಬುಕ್]}
+    - {id: ghar,    hi: घर,      en: house, kn: ಮನೆ,  variants: [gharr, ghr, makaan, मकान, home, हाउस, होम, mane, ಮನೆಗಳು, ಹೌಸ್, ಹೋಮ್]}
+    - {id: paani,   hi: पानी,    en: water, kn: ನೀರು,  variants: [pani, paanee, panee, jal, जल, वॉटर, वाटर, neeru, ವಾಟರ್]}
+    - {id: ped,     hi: पेड़,     en: tree, kn: ಮರ,   variants: [perh, pedh, पेड, vriksh, पेड़ों, ट्री, mara, ಟ್ರೀ]}
+    - {id: roti,    hi: रोटी,    en: bread, kn: ರೊಟ್ಟಿ,  variants: [rotee, rooti, chapati, chapatti, चपाती, रोटियाँ, ब्रेड, rotti, ಬ್ರೆಡ್]}
+    - {id: kitaab,  hi: किताब,   en: book, kn: ಪುಸ್ತಕ,   variants: [kitab, kitaabein, kitabein, pustak, पुस्तक, बुक, pustaka, ಬುಕ್, ಬುಕ್]}
     - {id: chaabi,  hi: चाबी,    en: key, kn: ಕೀಲಿ,    variants: [chabi, chaabee, chabhi, chaabhi, चाभी, keeli, ಬೀಗದ ಕೈ]}
-    - {id: darwaza, hi: दरवाज़ा,  en: door, kn: ಬಾಗಿಲು,   variants: [darwaja, darvaza, darvaja, दरवाजा, dwar, डोर, baagilu, bagilu]}
-    - {id: chaand,  hi: चाँद,    en: moon, kn: ಚಂದ್ರ,   variants: [chand, chaand, चांद, chanda, चंदा, मून, chandra, ಚಂದಮಾಮ]}
-    - {id: kursi,   hi: कुर्सी,   en: chair, kn: ಕುರ್ಚಿ,  variants: [kursee, kurshi, कुरसी, चेयर, kurchi]}
-    - {id: phool,   hi: फूल,     en: flower, kn: ಹೂವು, variants: [phul, ful, pushp, फ्लावर, फ्लॉवर, फूलों, hoovu, ಹೂ]}
+    - {id: darwaza, hi: दरवाज़ा,  en: door, kn: ಬಾಗಿಲು,   variants: [darwaja, darvaza, darvaja, दरवाजा, dwar, डोर, baagilu, bagilu, ಡೋರ್]}
+    - {id: chaand,  hi: चाँद,    en: moon, kn: ಚಂದ್ರ,   variants: [chand, chaand, चांद, chanda, चंदा, मून, chandra, ಚಂದಮಾಮ, ಮೂನ್]}
+    - {id: kursi,   hi: कुर्सी,   en: chair, kn: ಕುರ್ಚಿ,  variants: [kursee, kurshi, कुरसी, चेयर, kurchi, ಚೇರ್]}
+    - {id: phool,   hi: फूल,     en: flower, kn: ಹೂವು, variants: [phul, ful, pushp, फ्लावर, फ्लॉवर, फूलों, hoovu, ಹೂ, ಫ್ಲವರ್, ಫ್ಲಾವರ್]}
   B:
-    - {id: nadi,    hi: नदी,     en: river, kn: ನದಿ,    variants: [nadee, nadi, darya, दरिया, रिवर]}
-    - {id: chappal, hi: चप्पल,   en: slippers, kn: ಚಪ್ಪಲಿ, variants: [chapal, chappals, slipper, चपल, स्लिपर, स्लीपर, chappali]}
-    - {id: aam,     hi: आम,      en: mango, kn: ಮಾವು,    variants: [aamm, mangoes, आम्र, मैंगो, maavu, ಮಾವಿನಹಣ್ಣು]}
-    - {id: ghadi,   hi: घड़ी,     en: watch, kn: ಗಡಿಯಾರ,    variants: [ghari, ghadee, घडी, clock, वॉच, घड़ियाँ, gadiyara, ವಾಚ್]}
-    - {id: gilaas,  hi: गिलास,   en: glass, kn: ಲೋಟ,    variants: [gilas, glaas, ग्लास, lota, ಗ್ಲಾಸ್]}
-    - {id: thali,   hi: थाली,    en: plate, kn: ತಟ್ಟೆ,    variants: [thaali, thalee, thaal, प्लेट, tatte]}
-    - {id: baadal,  hi: बादल,    en: cloud, kn: ಮೋಡ,    variants: [badal, baadal, clouds, क्लाउड, बादलों, moda]}
-    - {id: sabun,   hi: साबुन,   en: soap, kn: ಸೋಪು,     variants: [saabun, saboon, sabun, सोप, sopu, ಸಾಬೂನು]}
-    - {id: taala,   hi: ताला,    en: lock, kn: ಬೀಗ,     variants: [tala, taalaa, ताले, लॉक, beega]}
+    - {id: nadi,    hi: नदी,     en: river, kn: ನದಿ,    variants: [nadee, nadi, darya, दरिया, रिवर, ರಿವರ್]}
+    - {id: chappal, hi: चप्पल,   en: slippers, kn: ಚಪ್ಪಲಿ, variants: [chapal, chappals, slipper, चपल, स्लिपर, स्लीपर, chappali, ಸ್ಲಿಪ್ಪರ್, ಸ್ಲಿಪರ್]}
+    - {id: aam,     hi: आम,      en: mango, kn: ಮಾವು,    variants: [aamm, mangoes, आम्र, मैंगो, maavu, ಮಾವಿನಹಣ್ಣು, ಮ್ಯಾಂಗೋ]}
+    - {id: ghadi,   hi: घड़ी,     en: watch, kn: ಗಡಿಯಾರ,    variants: [ghari, ghadee, घडी, clock, वॉच, घड़ियाँ, gadiyara, ವಾಚ್, ವಾಚ್, ಕ್ಲಾಕ್]}
+    - {id: gilaas,  hi: गिलास,   en: glass, kn: ಲೋಟ,    variants: [gilas, glaas, ग्लास, lota, ಗ್ಲಾಸ್, ಗ್ಲಾಸ್, ग्लास]}
+    - {id: thali,   hi: थाली,    en: plate, kn: ತಟ್ಟೆ,    variants: [thaali, thalee, thaal, प्लेट, tatte, ಪ್ಲೇಟ್]}
+    - {id: baadal,  hi: बादल,    en: cloud, kn: ಮೋಡ,    variants: [badal, baadal, clouds, क्लाउड, बादलों, moda, ಕ್ಲೌಡ್]}
+    - {id: sabun,   hi: साबुन,   en: soap, kn: ಸೋಪು,     variants: [saabun, saboon, sabun, सोप, sopu, ಸಾಬೂನು, ಸೋಪ್]}
+    - {id: taala,   hi: ताला,    en: lock, kn: ಬೀಗ,     variants: [tala, taalaa, ताले, लॉक, beega, ಲಾಕ್]}
     - {id: pankha,  hi: पंखा,    en: fan, kn: ಫ್ಯಾನ್,      variants: [pankhaa, panka, पँखा, फैन, ಫ್ಯಾನು, ಬೀಸಣಿಗೆ]}
   C:
-    - {id: dibba,   hi: डिब्बा,   en: box, kn: ಡಬ್ಬ,      variants: [dabba, डब्बा, डिब्बे, dibbe, बॉक्स, boxes, ಡಬ್ಬಿ]}
-    - {id: rassi,   hi: रस्सी,   en: rope, kn: ಹಗ್ಗ,     variants: [rasi, rassee, rasee, रोप, hagga]}
-    - {id: chhata,  hi: छाता,    en: umbrella, kn: ಕೊಡೆ, variants: [chata, chhaata, chaata, छतरी, chhatri, छाते, अम्ब्रेला, kode, ಛತ್ರಿ]}
-    - {id: patta,   hi: पत्ता,   en: leaf, kn: ಎಲೆ,     variants: [pattaa, leaves, पत्ते, लीफ, ele]}
+    - {id: dibba,   hi: डिब्बा,   en: box, kn: ಡಬ್ಬ,      variants: [dabba, डब्बा, डिब्बे, dibbe, बॉक्स, boxes, ಡಬ್ಬಿ, ಬಾಕ್ಸ್]}
+    - {id: rassi,   hi: रस्सी,   en: rope, kn: ಹಗ್ಗ,     variants: [rasi, rassee, rasee, रोप, hagga, ರೋಪ್, रोप]}
+    - {id: chhata,  hi: छाता,    en: umbrella, kn: ಕೊಡೆ, variants: [chata, chhaata, chaata, छतरी, chhatri, छाते, अम्ब्रेला, kode, ಛತ್ರಿ, ಅಂಬ್ರೆಲಾ, अम्ब्रेला, अंब्रेला]}
+    - {id: patta,   hi: पत्ता,   en: leaf, kn: ಎಲೆ,     variants: [pattaa, leaves, पत्ते, लीफ, ele, ಲೀಫ್, लीफ]}
     - {id: bazaar,  hi: बाज़ार,   en: market, kn: ಮಾರುಕಟ್ಟೆ,   variants: [bazar, baazaar, बाजार, haat, हाट, मार्केट, marukatte, ಸಂತೆ, ಮಾರ್ಕೆಟ್]}
-    - {id: kapda,   hi: कपड़ा,   en: cloth, kn: ಬಟ್ಟೆ,    variants: [kapra, kapada, kapde, कपड़े, clothes, क्लॉथ, batte]}
-    - {id: dhoop,   hi: धूप,     en: sunlight, kn: ಬಿಸಿಲು, variants: [dhup, dhoop, sunshine, sun light, सनलाइट, bisilu]}
-    - {id: chammach, hi: चम्मच,  en: spoon, kn: ಚಮಚ,    variants: [chamach, chammach, chamcha, चमचा, स्पून, chamacha]}
-    - {id: botal,   hi: बोतल,    en: bottle, kn: ಬಾಟಲಿ,   variants: [bottal, botel, bottle, बॉटल, बोतलें, batali, ಬಾಟಲ್]}
+    - {id: kapda,   hi: कपड़ा,   en: cloth, kn: ಬಟ್ಟೆ,    variants: [kapra, kapada, kapde, कपड़े, clothes, क्लॉथ, batte, ಕ್ಲಾತ್, क्लॉथ, क्लोथ]}
+    - {id: dhoop,   hi: धूप,     en: sunlight, kn: ಬಿಸಿಲು, variants: [dhup, dhoop, sunshine, sun light, सनलाइट, bisilu, ಸನ್‌ಲೈಟ್, सनलाइट, सन लाइट]}
+    - {id: chammach, hi: चम्मच,  en: spoon, kn: ಚಮಚ,    variants: [chamach, chammach, chamcha, चमचा, स्पून, chamacha, ಸ್ಪೂನ್]}
+    - {id: botal,   hi: बोतल,    en: bottle, kn: ಬಾಟಲಿ,   variants: [bottal, botel, bottle, बॉटल, बोतलें, batali, ಬಾಟಲ್, ಬಾಟಲ್]}
     - {id: mez,     hi: मेज़,     en: table, kn: ಮೇಜು,    variants: [mej, mez, मेज, टेबल, meju, ಟೇಬಲ್]}
 
 # Common Hindi/English filler that must never be matched as a list word or an animal.

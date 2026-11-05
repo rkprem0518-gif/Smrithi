@@ -30,6 +30,8 @@ class Settings(BaseSettings):
     bolna_agent_id: str = ""
     bolna_agent_id_kn: str = ""  # Kannada agent (create_agent.py --language kn)
     bolna_agent_id_en: str = ""  # English agent (create_agent.py --language en); falls back to BOLNA_AGENT_ID
+    # BOLNA_AGENT_ID speaks Hindi, Kannada and English and lets the person pick (create_agent.py --multilingual)
+    bolna_multilingual: bool = False
     bolna_from_number: str = ""
     bolna_webhook_token: str = "change-me"
 
@@ -77,7 +79,9 @@ class Settings(BaseSettings):
         return url.startswith("https://") and "localhost" not in url and "127.0.0.1" not in url
 
     def agent_id_for(self, language: str) -> str:
-        """One agent per speech language: the STT/TTS language is fixed per Bolna agent."""
+        """The multilingual agent serves every language; otherwise one agent per speech language."""
+        if self.bolna_multilingual:
+            return self.bolna_agent_id
         if language == "kn":
             return self.bolna_agent_id_kn
         if language == "en":

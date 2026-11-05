@@ -41,13 +41,13 @@ invalid:
 orientation:
   utc_offset_minutes: 330
   days:
-    0: [monday, somvar, somwar, सोमवार, som, ಸೋಮವಾರ]
-    1: [tuesday, mangalvar, mangalwar, मंगलवार, mangal, ಮಂಗಳವಾರ]
-    2: [wednesday, budhvar, budhwar, बुधवार, budh, ಬುಧವಾರ]
-    3: [thursday, guruvar, guruwar, गुरुवार, brihaspativar, बृहस्पतिवार, veervar, वीरवार, ಗುರುವಾರ]
-    4: [friday, shukravar, shukrawar, शुक्रवार, shukra, jumma, जुम्मा, ಶುಕ್ರವಾರ]
-    5: [saturday, shanivar, shaniwar, शनिवार, shani, ಶನಿವಾರ]
-    6: [sunday, ravivar, raviwar, रविवार, itvaar, itwar, इतवार, ಭಾನುವಾರ, ರವಿವಾರ]
+    0: [monday, somvar, somwar, सोमवार, som, ಸೋಮವಾರ, ಮಂಡೇ, मंडे]
+    1: [tuesday, mangalvar, mangalwar, मंगलवार, mangal, ಮಂಗಳವಾರ, ಟ್ಯೂಸ್‌ಡೇ, ट्यूज़डे, ट्यूसडे]
+    2: [wednesday, budhvar, budhwar, बुधवार, budh, ಬುಧವಾರ, ವೆಡ್ನೆಸ್‌ಡೇ, वेडनेसडे, वेनसडे]
+    3: [thursday, guruvar, guruwar, गुरुवार, brihaspativar, बृहस्पतिवार, veervar, वीरवार, ಗುರುವಾರ, ಥರ್ಸ್‌ಡೇ, थर्सडे]
+    4: [friday, shukravar, shukrawar, शुक्रवार, shukra, jumma, जुम्मा, ಶುಕ್ರವಾರ, ಫ್ರೈಡೇ, फ्राइडे]
+    5: [saturday, shanivar, shaniwar, शनिवार, shani, ಶನಿವಾರ, ಸ್ಯಾಟರ್‌ಡೇ, सैटरडे]
+    6: [sunday, ravivar, raviwar, रविवार, itvaar, itwar, इतवार, ಭಾನುವಾರ, ರವಿವಾರ, ಸಂಡೇ, संडे]
   months:
     1: [january, janvari, janwari, जनवरी, ಜನವರಿ]
     2: [february, farvari, farwari, फरवरी, फ़रवरी, ಫೆಬ್ರವರಿ]
@@ -77,11 +77,11 @@ orientation:
     11: [kartik, कार्तिक, agahan, अगहन, margashirsha, ಕಾರ್ತಿಕ, ಮಾರ್ಗಶಿರ]
     12: [agahan, अगहन, paush, पौष, poos, पूस, ಮಾರ್ಗಶಿರ, ಪುಷ್ಯ]
   seasons:
-    winter: [winter, sardi, sardiyan, सर्दी, सर्दियाँ, thand, thandi, ठंड, ठंडी, jaada, जाड़ा, sheet, शीत, ಚಳಿಗಾಲ, ಚಳಿ, chaligala]
-    summer: [summer, garmi, garmiyan, गर्मी, गर्मियाँ, grishm, ग्रीष्म, ಬೇಸಿಗೆ, ಬೇಸಿಗೆಕಾಲ, besige]
-    monsoon: [monsoon, rainy, rain, rains, barsaat, barsat, बरसात, baarish, barish, बारिश, varsha, वर्षा, ಮಳೆಗಾಲ, ಮಳೆ, malegala]
-    spring: [spring, basant, vasant, बसंत, वसंत, ವಸಂತ, ವಸಂತಕಾಲ]
-    autumn: [autumn, sharad, शरद, patjhad, पतझड़, festive, ಶರತ್ಕಾಲ, ಶರತ್]
+    winter: [winter, sardi, sardiyan, सर्दी, सर्दियाँ, thand, thandi, ठंड, ठंडी, jaada, जाड़ा, sheet, शीत, ಚಳಿಗಾಲ, ಚಳಿ, chaligala, ವಿಂಟರ್, विंटर]
+    summer: [summer, garmi, garmiyan, गर्मी, गर्मियाँ, grishm, ग्रीष्म, ಬೇಸಿಗೆ, ಬೇಸಿಗೆಕಾಲ, besige, ಸಮ್ಮರ್, समर]
+    monsoon: [monsoon, rainy, rain, rains, barsaat, barsat, बरसात, baarish, barish, बारिश, varsha, वर्षा, ಮಳೆಗಾಲ, ಮಳೆ, malegala, ಮಾನ್ಸೂನ್, ರೈನಿ, मानसून, रेनी]
+    spring: [spring, basant, vasant, बसंत, वसंत, ವಸಂತ, ವಸಂತಕಾಲ, ಸ್ಪ್ರಿಂಗ್, स्प्रिंग]
+    autumn: [autumn, sharad, शरद, patjhad, पतझड़, festive, ಶರತ್ಕಾಲ, ಶರತ್, ಆಟಮ್, ऑटम]
   # Seasons accepted for each month (lenient: neighbouring seasons accepted too).
   season_by_month:
     1: [winter]
@@ -97,10 +97,10 @@ orientation:
     11: [winter, autumn]
     12: [winter]
   times_of_day:
-    morning: {hours: [5, 12], words: [morning, subah, subha, सुबह, savera, सवेरा, ಬೆಳಿಗ್ಗೆ, ಬೆಳಗ್ಗೆ, beligge]}
-    afternoon: {hours: [12, 16], words: [afternoon, dopahar, dopehar, दोपहर, noon, ಮಧ್ಯಾಹ್ನ, madhyahna]}
-    evening: {hours: [16, 20], words: [evening, shaam, sham, शाम, sandhya, संध्या, ಸಂಜೆ, sanje]}
-    night: {hours: [20, 29], words: [night, raat, rat, रात, ರಾತ್ರಿ, ratri]}   # 20:00 to 05:00 next day
+    morning: {hours: [5, 12], words: [morning, subah, subha, सुबह, savera, सवेरा, ಬೆಳಿಗ್ಗೆ, ಬೆಳಗ್ಗೆ, beligge, ಮಾರ್ನಿಂಗ್, मॉर्निंग, मोर्निंग]}
+    afternoon: {hours: [12, 16], words: [afternoon, dopahar, dopehar, दोपहर, noon, ಮಧ್ಯಾಹ್ನ, madhyahna, ಆಫ್ಟರ್‌ನೂನ್, आफ्टरनून]}
+    evening: {hours: [16, 20], words: [evening, shaam, sham, शाम, sandhya, संध्या, ಸಂಜೆ, sanje, ಈವನಿಂಗ್, ईवनिंग]}
+    night: {hours: [20, 29], words: [night, raat, rat, रात, ರಾತ್ರಿ, ratri, ನೈಟ್, नाइट]}   # 20:00 to 05:00 next day
   time_boundary_tolerance_minutes: 45   # near a boundary, the neighbouring period also counts
   dont_know: [pata nahi, pata nahin, nahi pata, malum nahi, maloom nahi, nahi malum, nahi maloom, yaad nahi,
               bhool gayi, bhool gaya, bhul gayi, bhul gaya, naam bhool, dont know, do not know, not sure,
@@ -109,9 +109,9 @@ orientation:
 
 # Yes/no parsing for consent and the "is anyone helping you?" question.
 # "ji"/"जी" is an honorific ("नहीं जी" = no); it only counts as yes when said on its own (see parse_yes_no).
-yes_words: [haan, han, haanji, hanji, yes, yeah, bilkul, theek, thik, ok, okay, zaroor, हाँ, हां, जी हाँ, ठीक, बिल्कुल, ಹೌದು, ಹೂಂ, ಸರಿ, ಆಯ್ತು, ಪರವಾಗಿಲ್ಲ, ಓಕೆ, haudu, aytu, paravagilla]
+yes_words: [haan, han, haanji, hanji, yes, yeah, bilkul, theek, thik, ok, okay, zaroor, हाँ, हां, जी हाँ, ठीक, बिल्कुल, ಹೌದು, ಹೂಂ, ಸರಿ, ಆಯ್ತು, ಪರವಾಗಿಲ್ಲ, ಓಕೆ, haudu, aytu, paravagilla, यस, येस, ಯೆಸ್, ಯಸ್]
 # "ना"/"na" is left out on purpose: it is usually a tag particle ("बता रही थी ना").
-no_words: [nahi, nahin, nai, no, nope, koi nahi, akela, akele, akeli, अकेले, अकेला, अकेली, नहीं, नही, नई, नो, ಇಲ್ಲ, ಇಲ್ಲಾ, ಬೇಡ, illa, beda]
+no_words: [nahi, nahin, nai, no, nope, koi nahi, akela, akele, akeli, अकेले, अकेला, अकेली, नहीं, नही, नई, नो, ಇಲ್ಲ, ಇಲ್ಲಾ, ಬೇಡ, ನೋ, illa, beda]
 
 # Experimental speech markers (shown in a collapsed section; NEVER used for the outcome).
 speech_markers:

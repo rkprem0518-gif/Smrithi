@@ -73,14 +73,19 @@ def word_list_for(form: str, language: str) -> str:
     return ", ".join(pick(w) for w in words)
 
 
-def build_user_data(session: Session) -> dict[str, Any]:
-    """Filled into the prompt's {{placeholders}} by Bolna."""
-    return {
+def build_user_data(session: Session, multilingual: bool = False) -> dict[str, Any]:
+    """Filled into the prompt's {{placeholders}} by Bolna. The word list goes in all three languages,
+    because the person may choose (or switch to) another language during the call."""
+    data: dict[str, Any] = {
         "session_id": session.id,
         "word_form": session.word_form,
         "language": session.language,
         "word_list": word_list_for(session.word_form, session.language),
+        **{f"word_list_{lang}": word_list_for(session.word_form, lang) for lang in ("hi", "kn", "en")},
     }
+    if multilingual:
+        data["agent_language"] = session.language  # starting language; the person can pick another
+    return data
 
 
 def _touch(db: DBSession, session: Session, status: str | None = None, **fields: Any) -> None:
@@ -174,13 +179,14 @@ async def create_session(
     async with BolnaClient.from_settings(settings) as client:
         try:
             if mode == "web":
-                web = await client.create_web_call_session(agent_id, build_user_data(session))
+                user_data = build_user_data(session, settings.bolna_multilingual)
+                web = await client.create_web_call_session(agent_id, user_data)
                 # TODO(bolna): confirm the web-call session's run_id is the execution id
                 # used by GET /executions/{id}. If not, the webhook still links it via user_data.
                 _touch(db, session, Status.CALLING, execution_id=web.get("run_id"))
                 return session, web
             execution_id = await client.make_call(
-                agent_id, phone or "", build_user_data(session),
+                agent_id, phone or "", build_user_data(session, settings.bolna_multilingual),
                 settings.bolna_from_number or None,
             )
         except BolnaError as exc:

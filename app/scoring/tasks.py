@@ -13,16 +13,16 @@ from app.scoring.types import ScoringConfig, Turn
 NOISE_TOKENS = frozenset({"inaudible", "unintelligible", "noise", "unclear", "blank", "silence"})
 
 _DIGIT_WORDS_RAW = {
-    0: ["zero", "shunya", "sunya", "shoonya", "शून्य", "ಸೊನ್ನೆ"],
-    1: ["one", "ek", "एक", "ಒಂದು", "ondu"],
-    2: ["two", "do", "दो", "ಎರಡು", "eradu"],
-    3: ["three", "teen", "tin", "तीन", "ಮೂರು", "mooru"],
-    4: ["four", "char", "chaar", "चार", "ನಾಲ್ಕು", "nalku"],
-    5: ["five", "panch", "paanch", "पाँच", "पांच", "ಐದು", "aidu"],
-    6: ["six", "chhe", "che", "chhah", "chah", "chheh", "छह", "छः", "छे", "ಆರು", "aaru"],
-    7: ["seven", "saat", "sat", "सात", "साथ", "sath", "saath", "ಏಳು", "elu"],  # STT often writes साथ
-    8: ["eight", "aath", "aat", "आठ", "ಎಂಟು", "entu"],
-    9: ["nine", "nau", "nao", "नौ", "नो", "नव", "ಒಂಬತ್ತು", "ombattu"],
+    0: ["zero", "shunya", "sunya", "shoonya", "शून्य", "ಸೊನ್ನೆ", "ज़ीरो", "जीरो", "ಜೀರೋ", "ಝೀರೋ"],
+    1: ["one", "ek", "एक", "ಒಂದು", "ondu", "वन", "ವನ್", "ಒನ್"],
+    2: ["two", "do", "दो", "ಎರಡು", "eradu", "टू", "ಟೂ"],
+    3: ["three", "teen", "tin", "तीन", "ಮೂರು", "mooru", "थ्री", "ತ್ರೀ"],
+    4: ["four", "char", "chaar", "चार", "ನಾಲ್ಕು", "nalku", "फोर", "फ़ोर", "ಫೋರ್"],
+    5: ["five", "panch", "paanch", "पाँच", "पांच", "ಐದು", "aidu", "फाइव", "फाइव़", "ಫೈವ್"],
+    6: ["six", "chhe", "che", "chhah", "chah", "chheh", "छह", "छः", "छे", "ಆರು", "aaru", "सिक्स", "ಸಿಕ್ಸ್"],
+    7: ["seven", "saat", "sat", "सात", "साथ", "sath", "saath", "ಏಳು", "elu", "सेवन", "ಸೆವೆನ್"],  # STT often writes साथ
+    8: ["eight", "aath", "aat", "आठ", "ಎಂಟು", "entu", "एट", "एइट", "ಎಯ್ಟ್", "ಎಂಟ್"],
+    9: ["nine", "nau", "nao", "नौ", "नो", "नव", "ಒಂಬತ್ತು", "ombattu", "नाइन", "ನೈನ್"],
 }
 DIGIT_WORDS: dict[str, str] = {
     t.key: str(d) for d, words in _DIGIT_WORDS_RAW.items() for w in words for t in tokenize(w)

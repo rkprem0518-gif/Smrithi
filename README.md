@@ -109,7 +109,8 @@ Scoring is **deterministic and explainable**: Devanagari/Kannada → Latin trans
 | Executions (`GET /executions/{id}`): status, transcript, `telephony_data.recording_url` | [`app/services/bolna_client.py`](app/services/bolna_client.py) |
 | **Webhooks** (`agent_config.webhook_url`, token-checked) + a polling fallback | [`app/api/webhook.py`](app/api/webhook.py), [`app/services/poller.py`](app/services/poller.py) |
 | Account info (`GET /user/me`: wallet, concurrency) | [`scripts/check_live.py`](scripts/check_live.py) |
-| Indian-language voice stack: **Sarvam Saaras v4** STT and **Sarvam Bulbul v3** TTS in `hi`, `kn` and `en` (one agent per language), GPT-4.1-mini LLM, Plivo telephony | [`config/agent.json`](config/agent.json) |
+| **Multilingual agent** (`tools_config.multilingual_config`): one agent speaks Hindi, Kannada and English, asks the person which language they want, and switches speech recognition, voice and replies together; the starting language comes from `user_data.agent_language` | [`app/services/agent_builder.py`](app/services/agent_builder.py) |
+| Indian-language voice stack: **Sarvam Saaras v4** STT and **Sarvam Bulbul v3** TTS in `hi`, `kn` and `en`, GPT-4.1-mini LLM, Plivo telephony, built-in **noise cancellation** (`noise_cancellation_level: 85`) | [`config/agent.json`](config/agent.json) |
 | Call controls: `hangup_after_silence` raised to 25 s for the 1-minute animal task, `call_terminate` = `MAX_CALL_MINUTES`, `check_user_online_message` in the call's language (Bolna's default is English), and a welcome message that asks a question | [`app/services/agent_builder.py`](app/services/agent_builder.py) |
 | Web Call SDK (`@bolna/web-call`, backend-minted `POST /web-call/session`) - optional | [`app/web/webcall.js`](app/web/webcall.js) |
 
@@ -119,7 +120,8 @@ Scoring is **deterministic and explainable**: Devanagari/Kannada → Latin trans
 2. Review the agent without spending anything: `python scripts/create_agent.py --dry-run`
 3. Create it: `python scripts/create_agent.py` → copy the printed id into `.env` as `BOLNA_AGENT_ID`.
 4. `python scripts/check_live.py` → prints wallet balance, concurrency, confirms the agent exists, and says **READY** or what is missing.
-5. Create the other languages' agents the same way. Each language needs its own agent because the speech-to-text and voice language is fixed per Bolna agent:
+5. **Recommended: one multilingual agent.** `python scripts/create_agent.py --update --multilingual` turns `BOLNA_AGENT_ID` into an agent that speaks Hindi, Kannada and English and lets the person choose at the start of the call; then set `BOLNA_MULTILINGUAL=1`. The family's language on the form becomes the starting language.
+   Single-language agents (backup) are created the same way. Each language needs its own agent because the speech-to-text and voice language is fixed per Bolna agent:
    - **Kannada:** `python scripts/create_agent.py --language kn` → `BOLNA_AGENT_ID_KN`
    - **English:** `python scripts/create_agent.py --language en` → `BOLNA_AGENT_ID_EN` (if unset, English calls use the Hindi agent)
    - After changing the prompt or `config/agent.json`, push it to the existing agents with `--update` (plus `--language kn` / `--language en`).
@@ -145,6 +147,9 @@ What the real transcript taught us, and what we changed:
 | "सेकंड ईयर में पढ़ रहा हूं" (2nd year of college) was read as 2 years of school | "<ordinal> year" now means college: 12 + n years (higher schooling band) |
 | "Hippo" was transcribed as हैप्पी and not counted | added हिप्पो / हैप्पी to the animal lexicon |
 | English answers on the Hindi agent were transcribed in Devanagari ("यस, आई एम देयर") | a dedicated **English agent** (English STT and voice) |
+| English words in Hindi/Kannada answers come out in the native script ("यस", "ಡಾಗ್", "फोर सेवन टू") | Hinglish/Kanglish accepted: English list words, animals, days, seasons, times, digits and yes/no added in Devanagari and Kannada script |
+| The person may prefer a different language from the one the family picked | one multilingual agent; the greeting asks "Hindi, Kannada or English?" and the call continues in the person's choice |
+| Noisy lines (the Kannada call was made from a moving vehicle) | Bolna's built-in noise cancellation turned on (level 85). Custom denoising is not possible inside Bolna's live audio path; denoising the recording after the call is on the roadmap |
 | An answer split over two turns ("8" … "एक। छः।") | already handled: the hearing check joins split answers |
 
 ### NEXT

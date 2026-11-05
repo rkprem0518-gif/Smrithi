@@ -9,7 +9,32 @@ from app.scoring.types import ScoringConfig
 from app.settings import Settings
 
 # Placeholders the prompt expects in user_data ({{name}} in the prompt, per Bolna docs).
-PROMPT_VARIABLES = ("language", "word_list")
+PROMPT_VARIABLES = ("language", "word_list_hi", "word_list_kn", "word_list_en")
+LANGUAGES = ("hi", "kn", "en")
+
+
+def _multilingual_config(template: dict[str, Any], base_synth: dict[str, Any]) -> dict[str, Any]:
+    """tools_config.multilingual_config: one agent speaking Hindi, Kannada and English.
+
+    Shape per bolna.ai/docs/customizations/multilingual-config-reference: each language overrides
+    the base transcriber language and synthesizer, and has its own welcome message.
+    """
+    ml = template["multilingual"]
+    languages = {}
+    for lang in LANGUAGES:
+        synth = copy.deepcopy(base_synth)
+        synth["provider_config"]["language"] = lang
+        languages[lang] = {
+            "transcriber": {"language": lang},
+            "synthesizer": {"provider": synth["provider"], "provider_config": synth["provider_config"]},
+            "welcome_message": ml["welcome_messages"][lang],
+        }
+    return {
+        "enabled": True,
+        "active_language": ml["default_language"],
+        "language_switch_trigger": ml["language_switch_trigger"],
+        "languages": languages,
+    }
 
 
 def build_agent_payload(
@@ -19,10 +44,17 @@ def build_agent_payload(
     cfg: ScoringConfig | None = None,
     with_keywords: bool = False,
     language: str = "hi",
+    multilingual: bool = False,
 ) -> dict[str, Any]:
     agent_config = copy.deepcopy(template["agent_config"])
     task = agent_config["tasks"][0]
-    variant = template.get("language_variants", {}).get(language)
+    variant = None if multilingual else template.get("language_variants", {}).get(language)
+    if multilingual:
+        tools = task["tools_config"]
+        tools["multilingual_config"] = _multilingual_config(template, tools["synthesizer"])
+        agent_config["agent_welcome_message"] = template["multilingual"]["welcome_messages"]["hi"]
+        # "Hello?" works in every language; the default online check is English.
+        task["task_config"]["check_user_online_message"] = template["multilingual"]["check_user_online_message"]
     if variant:
         # TODO(bolna): confirm Sarvam saaras:v4 + bulbul:v3 voice "suhani" with language "kn".
         agent_config["agent_name"] += variant["agent_name_suffix"]
