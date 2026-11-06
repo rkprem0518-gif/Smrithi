@@ -77,10 +77,11 @@ Smriti starts **empty**, and the family app walks you through setup in five shor
 
 - **No time to set up?** On the welcome screen, **Explore a sample family instead** adds Appa with 8 weeks of calls (or run `python start.py --sample`).
 - **Remove a profile:** Family circle → **Remove**. **Delete everything:** **Start over** in the sidebar (or `python start.py --reset`).
+- **Small window or phone?** Everything above is under the **More** tab at the bottom: every page, the Real calls switch, Connect Bolna, profiles, language and log out.
 
-- **Real calls switch:** in the sidebar of every app. It's **off by default**, so calls are simulated end to end and no Bolna credits are spent. Turning it on asks first and shows the wallet balance.
+- **Real calls switch:** in the sidebar of the family and care-team apps (under **More** on small screens). It's **off by default**, so calls are simulated end to end and no Bolna credits are spent. Turning it on asks first and shows the wallet balance.
 - **Real calls only work with your own Bolna API key,** and a Bolna trial account can call only numbers verified in your Bolna dashboard (Profile → Verified numbers).
-- **Your own Bolna account:** under the switch, **Connect Bolna** → paste your Bolna API key. Smriti checks it and sets up its three voice agents on your account (check-in, call to the family, memory check). No call is placed and no credits are used until you switch Real calls on. The key stays on the server and is never shown in the browser again; **Manage → Disconnect** deletes it.
+- **Your own Bolna account:** under the switch, **Connect Bolna** → paste your Bolna API key. Smriti checks it and sets up its three voice agents on your account (check-in, call to the family, memory check). No call is placed and no credits are used until you switch Real calls on. The key stays on the server and is never shown in the browser again; **Manage → Disconnect** deletes it. A key pasted here takes priority over one in `.env`.
 - **Full demo script:** [docs/DEMO_PLAN.md](docs/DEMO_PLAN.md).
 - **Hard questions and answers:** [docs/DEMO_QA.md](docs/DEMO_QA.md).
 
@@ -88,7 +89,8 @@ Smriti starts **empty**, and the family app walks you through setup in five shor
 
 **For the elder (port 8001)**
 - **Big text, three screen languages:** English · हिंदी · ಕನ್ನಡ. The page opens in the parent's own language.
-- **"Call me now":** a short chat on demand.
+- **"Call me now":** a short chat on demand, on a simple screen in their own language.
+- **Log in by tapping their name:** they appear as soon as the family adds them.
 - **They're in control:**
   - choose what the family can see: *only that I'm okay*, *health worries too*, or *everything*;
   - choose the call language;
@@ -98,6 +100,7 @@ Smriti starts **empty**, and the family app walks you through setup in five shor
 - **"Smriti will never ask you for money, bank details or an OTP."** Shown on the page and said on the calls.
 
 **For the family (port 8000)**
+- **Guided setup:** a new user goes from the welcome screen to a first call in five short steps (about you → your parent → call days and time → done).
 - **Today:** the parent's latest mood, this week's flags in their own words (with an English translation), the message they asked Smriti to pass on, and what's coming up.
 - **Timeline ("the thread"):** every call is a point on one thread, coloured only when something needs attention, and it shows what Smriti remembered from last time.
 - **Calendar:** past and planned calls, the memory-check due date and doctor's visits, with **Add to Google Calendar** and an **.ics** download.
@@ -107,17 +110,20 @@ Smriti starts **empty**, and the family app walks you through setup in five shor
 - **Family circle:** members, invites by phone number or **Smriti ID**, and contacts that connect when both people add each other.
 - **Names Smriti uses:** set your own name, the parent's name, what you call them ("Amma") and how Smriti greets them ("Kamala ji"). Smriti says these on every call, for example "Is there anything you'd like me to tell Arjun?"
 - **+ Add a parent:** name, age, city, preferred language (11), relation and sharing level. They get their own elder login. Switch between parents from the sidebar.
+- **Remove a profile or start over:** remove one parent with everything about them, or delete every profile and account and return to the welcome screen.
 - **History:** everything that happened in the circle, live.
 
 **For the care team (port 8002)**
-- **Patients:** the people whose families shared with this clinic, with the parent's agreement.
+- **Create an account and start:** Smriti's care team sees every family as soon as it is set up, with no invitation needed.
+- **Patients:** every family on Smriti, with open cases and the latest memory check.
 - **Review queue:** red first, then memory checks, then yellow. Each case shows the parent's words, the rule that fired, the transcript and the recording.
 - **Approve and call the family:** pick the language (English, Hindi or Kannada). Smriti explains, offers a visit, and the visit lands on the family calendar.
 - **Patient page:** memory-check results item by item (word learning, delayed recall, animal naming, orientation), what came up over 8 weeks, and the timeline. **Order a memory check** from here.
 - **Behind the call:** cost and length of every call and the wallet balance, all from Bolna.
 
 **Across all three**
-- **Demo login and logout,** with a separate login per port so all three apps can be open side by side.
+- **Sign up and log in without a password (demo),** with a separate login per app so all three can be open side by side.
+- **Works on small screens:** a bottom tab bar with **More**, and dialogs that scroll with their buttons always in view.
 - **Live sync** over Server-Sent Events, with a polling fallback.
 - **Real calls / simulated calls switch,** shared by all three apps.
 - **Language for every call:** the parent's preferred language, any of 11 for that call only, or **"Let them choose"** (Smriti opens in English and asks).
