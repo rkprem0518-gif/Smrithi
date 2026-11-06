@@ -312,26 +312,31 @@ Each fix is in the git history; the pilot will be logged in [docs/pilot_log.md](
   - Bolna trial accounts can only call verified numbers, and there is no API to verify one from the app.
   - The Tamil, Telugu, Malayalam, Marathi, Bengali, Gujarati, Punjabi and Odia greetings, and the Hindi and Kannada screen text, need native-speaker review.
 
-## Roadmap
+## Roadmap: from a memory check to a care platform
 
-1. **Pilot** with 20–30 families in Bengaluru. Measure: do parents pick up week after week, and do families act on flags?
-2. **Clinical validation** with a memory clinic: compare against clinician assessment and set education-adjusted cut-offs.
-3. **More phone-friendly checks,** each in its own announced call:
-   - mood (PHQ-9 / GDS-15);
-   - falls (CDC STEADI);
-   - loneliness (UCLA-3);
-   - frailty (FRAIL);
-   - the family's own observations (10/66 informant questions).
-4. **More from Bolna:**
-   - post-call extraction as *suggestions* for the care team;
-   - Cal.com booking during the family call;
-   - batch scheduling with calling hours;
-   - Truecaller caller ID;
-   - India data residency.
-5. **Partners:** elder-care companies whose care managers become the care team, employer parent-care benefits and insurers.
-6. **Regulation:**
-   - DPDP Act consent flows.
-   - A regulatory opinion before any screening claim: software as a medical device under India's Medical Devices Rules, overseen by CDSCO.
+**Today, live on Bolna:** check-ins in 11 languages, the memory check, a care team, and the call to the family.
+
+**Next: three features families can picture**
+
+| Feature | What it does | How it stays safe |
+|---|---|---|
+| **Build your own check-in** | A family member types "Appa has diabetes and BP". An AI suggests questions (*"Did you check your sugar today? What was the number? Any dizziness?"*) and safe limits for readings. The family edits and approves them, and Smriti asks on schedule. | The AI only suggests; the family approves; the care team can review a check-in before it runs. Readings are flagged by fixed limits the family or doctor set. Smriti never advises. |
+| **More health checks like the memory check** | Each in its own announced call: mood (PHQ-9 / GDS-15), falls (CDC STEADI questions), loneliness (UCLA-3), frailty (FRAIL), and the family's own observations (10/66 informant questions). | Free or public-domain tools only, scored by fixed rules and reviewed by a person. No combined score across checks. |
+| **Family voice notes** | The son records a real ten-second message, *"Hi Appa, talk to Smriti, I'll hear how you are"*, which opens the call. Replies carry both ways. | A real recording, never a cloned voice. Cloned family voices are a common scam against elders, and Smriti always says it is an AI. |
+
+**Beyond**
+- **Pilot:** 20–30 families in Bengaluru. We measure whether parents pick up week after week and whether families act on flags.
+- **Validation** with a memory clinic: compare against clinician assessment, and set cut-offs adjusted for years of schooling.
+- **Partners:** elder-care companies whose care managers become the care team, employer parent-care benefits and insurers, running Smriti for thousands of elders.
+- **More from Bolna:**
+  - post-call extraction as *suggestions* for the care team;
+  - Cal.com booking during the family call;
+  - batch scheduling with calling hours;
+  - Truecaller caller ID;
+  - India data residency.
+- **Regulation:**
+  - DPDP Act consent flows.
+  - A regulatory opinion before any screening claim: software as a medical device under India's Medical Devices Rules, overseen by CDSCO.
 
 ## Repository layout
 
