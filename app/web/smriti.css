@@ -339,3 +339,21 @@ body.elder-app .btn { min-height: 58px; font-size: 19px; }
 body.elder-app .lang-switch button { font-size: 16px; padding: 8px 14px; }
 html[lang="kn"] h1, html[lang="kn"] h2, html[lang="kn"] h3, html[lang="kn"] .result-word { font-family: "Noto Sans Kannada", var(--sans); font-weight: 700; letter-spacing: 0; }
 html[lang="hi"] h1, html[lang="hi"] h2, html[lang="hi"] h3, html[lang="hi"] .result-word { font-family: "Noto Sans Devanagari", var(--sans); font-weight: 700; letter-spacing: 0; }
+
+/* real calls (Bolna credits) switch */
+.credits { border-radius: 14px; padding: 12px 14px; background: var(--mist); }
+.credits .small { color: var(--ink-2); margin-top: 4px; }
+.credits.on { background: var(--vermilion-soft); }
+.credits.on b { color: #8E2F20; }
+.switch { position: relative; width: 48px; height: 28px; border-radius: 999px; border: 0; background: var(--line); padding: 0; flex: none; }
+.switch i { position: absolute; top: 3px; left: 3px; width: 22px; height: 22px; border-radius: 50%; background: #fff; box-shadow: 0 1px 3px rgba(0,0,0,.2); transition: left .2s; }
+.switch.on { background: var(--vermilion); }
+.switch.on i { left: 23px; }
+.switch[disabled] { opacity: .5; cursor: not-allowed; }
+.mode-note { margin: 10px 0 0; padding: 8px 12px; border-radius: 10px; font-size: 15px; background: var(--mist); color: var(--ink-2); }
+.mode-note.live { background: var(--vermilion-soft); color: #8E2F20; font-weight: 700; }
+
+/* parent switcher (family app) */
+.parent-switch { padding-bottom: 12px; margin-bottom: 12px; border-bottom: 1px solid var(--line); }
+.parent-switch select { width: 100%; min-height: 42px; border-radius: 10px; border: 1.5px solid var(--line); padding: 0 10px; font: inherit; font-size: 15px; background: var(--paper); color: var(--ink); margin-top: 4px; }
+.field select { width: 100%; }

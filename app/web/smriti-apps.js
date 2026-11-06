@@ -24,6 +24,7 @@ async function boot() {
   const saved = store.get(`parent.${me.user.id}`);
   state.parentId = (parents.find((p) => p.id === saved) || parents[0] || {}).id || null;
   state.parent = parents.find((p) => p.id === state.parentId) || null;
+  await loadCallMode();
   startLiveSync();
   route();
 }
@@ -62,6 +63,126 @@ async function logout() {
   showLogin();
 }
 
+/* ---------------------------------------------------------------- parents: add, switch, reset; call language */
+function languagePicker(p) {
+  const pref = (p && p.language) || "en";
+  const opts = Object.keys(NATIVE).map((k) => `<option value="${k}">${NATIVE[k]}${NATIVE[k] !== LANG[k] ? " · " + LANG[k] : ""}</option>`).join("");
+  return `<label class="field"><span>Language for this call</span><select id="callLang">
+    <option value="">${esc((p && p.call_name) || "Their")}'s preferred language (${esc(NATIVE[pref] || pref)})</option>
+    <option value="ask">Let them choose: Smriti asks first</option>${opts}</select></label>`;
+}
+
+function parentSwitcher() {
+  if (state.app !== "family") return "";
+  const parents = (state.me && state.me.parents) || [];
+  return `<div class="parent-switch"><label class="small muted" for="parentSel">Looking after</label>
+    <select id="parentSel">${parents.map((x) => `<option value="${x.id}" ${x.id === state.parentId ? "selected" : ""}>${esc(x.call_name)} · ${esc(x.full_name)}</option>`).join("")}</select>
+    <div class="row" style="margin-top:8px;gap:6px"><button type="button" class="btn sm" id="addParent">+ Add a parent</button><button type="button" class="btn quiet sm" id="resetDemo" title="Remove parents added in the app; keeps the sample family">Reset</button></div></div>`;
+}
+
+document.addEventListener("change", (e) => {
+  if (e.target && e.target.id === "parentSel") {
+    state.parentId = e.target.value;
+    store.set(`parent.${state.me.user.id}`, state.parentId);
+    state.parent = (state.me.parents || []).find((x) => x.id === state.parentId) || null;
+    location.hash = "#/today";
+    route();
+  }
+});
+
+document.addEventListener("click", async (e) => {
+  if (e.target.closest && e.target.closest("#addParent")) addParentDialog();
+  if (e.target.closest && e.target.closest("#resetDemo")) {
+    const el = modal(`<h2>Reset demo profiles?</h2><p class="muted">Removes every parent added in the app, with their calls and history. The sample family (Appa) stays.</p>
+      <div class="actions"><button class="btn quiet" id="cancel">Cancel</button><button class="btn" id="go">Reset</button></div>`);
+    $("#cancel", el).onclick = closeModal;
+    $("#go", el).onclick = async () => {
+      const r = await api("/api/people/reset-demo", { method: "POST" });
+      closeModal();
+      await refreshMe();
+      state.parentId = ((state.me.parents || [])[0] || {}).id || null;
+      state.parent = (state.me.parents || [])[0] || null;
+      toast(`Removed ${r.removed} added profile${r.removed === 1 ? "" : "s"}.`);
+      location.hash = "#/today"; route();
+    };
+  }
+});
+
+function addParentDialog() {
+  const el = modal(`<h2>Add a parent</h2><p class="muted">Smriti will call them in the language you choose. They get their own simple page in the elder app.</p>
+    <label class="field"><span>Full name</span><input id="fn" placeholder="e.g. Kamala Sharma"></label>
+    <div class="grid g2" style="gap:12px"><label class="field"><span>What you call them</span><input id="cn" placeholder="Amma, Papa, Ajji…"></label>
+      <label class="field"><span>Age</span><input id="age" type="number" min="40" max="120" placeholder="70"></label></div>
+    <div class="grid g2" style="gap:12px"><label class="field"><span>City</span><input id="city" placeholder="Bengaluru"></label>
+      <label class="field"><span>You are their</span><select id="rel"><option>son</option><option>daughter</option><option>grandchild</option><option>relative</option><option>friend</option></select></label></div>
+    <label class="field"><span>Preferred language for calls</span><select id="lang">${Object.keys(NATIVE).map((k) => `<option value="${k}" ${k === "en" ? "selected" : ""}>${NATIVE[k]}${NATIVE[k] !== LANG[k] ? " · " + LANG[k] : ""}</option>`).join("")}</select></label>
+    <label class="field"><span>What the family can see (they can change this later)</span><select id="share"><option value="health">Health worries too</option><option value="okay_only">Only that they're okay</option><option value="all">Everything they talk about</option></select></label>
+    <label class="field"><span>Phone number (kept only in this browser)</span><input id="ph" inputmode="tel" placeholder="+91 98765 43210"></label>
+    <div class="err" id="err" hidden></div>
+    <div class="actions"><button class="btn quiet" id="cancel">Cancel</button><button class="btn" id="go">Add</button></div>`);
+  $("#cancel", el).onclick = closeModal;
+  $("#go", el).onclick = async () => {
+    try {
+      const age = parseInt($("#age", el).value, 10);
+      const p = await api("/api/people/parents", { method: "POST", body: {
+        full_name: $("#fn", el).value.trim(), call_name: $("#cn", el).value.trim(), age: Number.isFinite(age) ? age : null,
+        city: $("#city", el).value.trim(), language: $("#lang", el).value, relation: $("#rel", el).value, share_level: $("#share", el).value } });
+      const phone = $("#ph", el).value.replace(/[\s-]/g, "");
+      if (phone) store.set("parentPhone." + p.id, phone);
+      closeModal();
+      await refreshMe();
+      state.parentId = p.id; state.parent = p;
+      store.set(`parent.${state.me.user.id}`, p.id);
+      toast(`${p.call_name} added. Smriti will speak ${LANG[p.language] || p.language}.`);
+      location.hash = "#/today"; route();
+    } catch (err) { $("#err", el).textContent = err.message; $("#err", el).hidden = false; }
+  };
+}
+
+/* ---------------------------------------------------------------- real calls or simulated (Bolna credits) */
+async function loadCallMode() {
+  try { state.callMode = await api("/api/auth/call-mode"); } catch { state.callMode = { live: false, available: false }; }
+}
+
+function currentRoute() {
+  return (location.hash.replace(/^#\/?/, "") || HOME[state.app]).split("/")[0];
+}
+
+function usd(cents) { return cents === null || cents === undefined ? "" : `$${(Number(cents) / 100).toFixed(2)}`; }
+
+function callModeSwitch() {
+  const m = state.callMode || { live: false, available: false };
+  return `<div class="credits ${m.live ? "on" : ""}" style="margin-top:12px">
+    <div class="spread"><b>${m.live ? "Real calls" : "Simulated calls"}</b>
+      <button type="button" class="switch ${m.live ? "on" : ""}" id="creditsToggle" role="switch" aria-checked="${m.live}" aria-label="Use Bolna credits" ${m.available ? "" : "disabled"}><i></i></button></div>
+    <div class="small">${m.live ? `Using Bolna credits${m.wallet !== null && m.wallet !== undefined ? " · " + usd(m.wallet) + " left" : ""}` : m.available ? "No credits used. Switch on to place real calls." : "This server is offline-only (DEMO_MODE=1)."}</div></div>`;
+}
+
+function callModeNote() {
+  const m = state.callMode || {};
+  return m.live
+    ? `<p class="mode-note live">Real call · uses Bolna credits (about $0.06 a minute).</p>`
+    : `<p class="mode-note">Simulated call · no credits used. Turn on “Real calls” in the sidebar for a real phone call.</p>`;
+}
+
+document.addEventListener("click", async (e) => {
+  const t = e.target.closest && e.target.closest("#creditsToggle");
+  if (!t || t.disabled) return;
+  const m = state.callMode || {};
+  if (!m.live) {
+    const el = modal(`<h2>Use Bolna credits?</h2><p class="muted">Calls from all three apps will become real phone calls and use your Bolna balance${m.wallet !== null && m.wallet !== undefined ? " (" + usd(m.wallet) + " left)" : ""}. About $0.06 a minute.</p>
+      <div class="actions"><button class="btn quiet" id="cancel">Keep simulated</button><button class="btn" id="go">Turn on real calls</button></div>`);
+    $("#cancel", el).onclick = closeModal;
+    $("#go", el).onclick = async () => {
+      try { state.callMode = { ...m, ...(await api("/api/auth/call-mode", { method: "PUT", body: { live: true } })) }; closeModal(); await loadCallMode(); renderNav(currentRoute()); }
+      catch (err) { closeModal(); toast(err.message); }
+    };
+  } else {
+    state.callMode = { ...m, ...(await api("/api/auth/call-mode", { method: "PUT", body: { live: false } })) };
+    renderNav(currentRoute());
+  }
+});
+
 /* ---------------------------------------------------------------- live sync across the three apps */
 function startLiveSync() {
   if (state.sync) state.sync.close();
@@ -71,6 +192,7 @@ function startLiveSync() {
     state.sync.onmessage = (e) => {
       let ev;
       try { ev = JSON.parse(e.data); } catch { return; }
+      if (ev.type === "call_mode") { state.callMode = { ...(state.callMode || {}), live: ev.live }; renderNav(currentRoute()); toast(ev.live ? "Real calls are ON: calls use Bolna credits." : "Real calls are OFF: calls are simulated."); return; }
       if (ev.type === "activity") toast(ev.text);
       if ($(".scrim")) return; // don't redraw under an open dialog
       clearTimeout(timer);
@@ -157,17 +279,18 @@ function scheduleDialog() {
 
 function runDialog(s) {
   const p = state.parent || {};
-  const el = modal(`<h2>Run “${esc(s.label)}” now</h2><p class="muted">Smriti will call ${esc(p.call_name)} now and ask: ${s.questions.length ? s.questions.map(esc).join(" · ") : "how they're feeling"}.</p>
-    <label class="field"><span>Phone number</span><input id="ph" inputmode="tel" placeholder="+91 98765 43210" value="${esc(store.get("parentPhone"))}"></label>
+  const el = modal(`<h2>Run “${esc(s.label)}” now</h2>${callModeNote()}<p class="muted">Smriti will call ${esc(p.call_name)} now and ask: ${s.questions.length ? s.questions.map(esc).join(" · ") : "how they're feeling"}.</p>
+    <label class="field"><span>Phone number</span><input id="ph" inputmode="tel" placeholder="+91 98765 43210" value="${esc(store.get("parentPhone." + state.parentId) || store.get("parentPhone"))}"></label>
+    ${s.kind === "memory" ? "" : languagePicker(p)}
     <div class="err" id="err" hidden></div>
     <div class="actions"><button class="btn quiet" id="cancel">Cancel</button><button class="btn" id="go">${ic("phone")} Call now</button></div>`);
   $("#cancel", el).onclick = closeModal;
   $("#go", el).onclick = async () => {
     const phone = $("#ph", el).value.replace(/[\s-]/g, "");
-    store.set("parentPhone", phone);
+    store.set("parentPhone." + state.parentId, phone);
     $("#go", el).disabled = true;
     try {
-      const r = await api(`/api/family/schedules/${s.id}/run`, { method: "POST", body: { phone: phone || null } });
+      const r = await api(`/api/family/schedules/${s.id}/run`, { method: "POST", body: { phone: phone || null, language: $("#callLang", el) ? $("#callLang", el).value || null : null } });
       closeModal();
       showLive(r.session_id, r.checkin_id, `${s.label}: calling ${p.call_name}`, s.kind === "memory" ? "memory" : "checkin");
     } catch (e) { $("#err", el).textContent = e.message; $("#err", el).hidden = false; $("#go", el).disabled = false; }

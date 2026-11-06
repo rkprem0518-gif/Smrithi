@@ -200,7 +200,8 @@
         "topics",
         "family_questions",
         "share_sentence",
-        "language"
+        "language",
+        "language_note"
       ],
       "default_language": "en",
       "welcome_messages": {

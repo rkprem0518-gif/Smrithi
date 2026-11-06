@@ -184,3 +184,12 @@ class Activity(SQLModel, table=True):
     text: str
     ref: str | None = None  # checkin id / session id / schedule id
     audience: str = "all"  # all | clinic (safety items never reach the family)
+
+
+class AppSetting(SQLModel, table=True):
+    """Small shared switches (one row each), e.g. whether demo calls use real Bolna credits."""
+
+    key: str = Field(primary_key=True)
+    value: str = ""
+    updated_at: datetime = Field(default_factory=utcnow)
+    updated_by: str = ""

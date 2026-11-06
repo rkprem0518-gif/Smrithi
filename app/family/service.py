@@ -123,8 +123,29 @@ SHARE_SENTENCE = {
 }
 
 
+CALL_LANGUAGES = ("en", "hi", "kn", "ta", "te", "ml", "mr", "bn", "gu", "pa", "od")
+ASK_LANGUAGE_NOTE = (
+    "Start by asking, in English, which language they would like to speak (for example English, Hindi or "
+    "Kannada), then continue in that language."
+)
+
+
+def call_language(parent: Parent, language: str | None) -> tuple[str, str]:
+    """(language the call opens in, note for the agent). None = the parent's preferred language;
+    "ask" = open in English and let the person choose."""
+    if language == "ask":
+        return "en", ASK_LANGUAGE_NOTE
+    if language in CALL_LANGUAGES:
+        return language, ""
+    return parent.language, ""
+
+
 def checkin_user_data(
-    db: DBSession, parent: Parent, name: str | None = None, questions: list[str] | None = None
+    db: DBSession,
+    parent: Parent,
+    name: str | None = None,
+    questions: list[str] | None = None,
+    language: str | None = None,
 ) -> tuple[dict[str, Any], list[str], str]:
     """What the check-in agent gets for this call. Notes from last time are used once, then retired, so Smriti
     never keeps asking about the same thing."""
@@ -135,6 +156,7 @@ def checkin_user_data(
         db.add(n)
     db.commit()
     questions = [q.strip() for q in (questions or []) if q.strip()]
+    opening, language_note = call_language(parent, language)
     data = {
         "parent_name": name or parent.honorific or parent.call_name,
         "family_name": parent.family_name,
@@ -145,8 +167,9 @@ def checkin_user_data(
         "share_sentence": SHARE_SENTENCE.get(parent.share_level, SHARE_SENTENCE[ShareLevel.HEALTH]).format(
             f=parent.family_name
         ),
-        "language": parent.language,
-        "agent_language": parent.language,
+        "language": opening,
+        "agent_language": opening,
+        "language_note": language_note or "(the person can switch language any time by asking)",
         "call_type": "checkin",
     }
     remembered = notes[0].text if notes else ""
@@ -218,8 +241,9 @@ async def start_call(
     actor: Any = None,
     allow_paused: bool = False,
 ) -> tuple[Session, CheckIn]:
-    from app.family import people
+    from app.family import callmode, people
 
+    settings = callmode.effective(db, settings)  # simulated unless "Use Bolna credits" is on
     if kind not in KINDS:
         raise FamilyError(f"Unknown call kind {kind!r}", 400)
     if kind == "checkin" and parent.calls_paused and not allow_paused:
@@ -589,10 +613,12 @@ async def approve_case(
     reviewer: str = "care desk",
     note: str = "",
     actor: Any = None,
+    language: str | None = None,
 ) -> dict[str, Any]:
     from app.family import people
 
     reviewer = getattr(actor, "name", None) or reviewer
+    family_lang = language if language in ("en", "hi", "kn") else "en"  # the family agent speaks these three
     reason, place, title = family_reason(db, case_type, case_id, parent)
     if case_type == "flag":
         flag = db.get(Flag, case_id)
@@ -635,8 +661,8 @@ async def approve_case(
         "relation": parent.relation,
         "reason": reason,
         "suggested_visit": _fmt_visit(visit_at, place),
-        "language": "en",
-        "agent_language": "en",
+        "language": family_lang,
+        "agent_language": family_lang,
         "call_type": "family",
     }
     summary = f"Smriti called {parent.family_name} about: {title.lower()}."
@@ -650,7 +676,7 @@ async def approve_case(
         settings=settings,
         user_data=user_data,
         summary=summary,
-        language="en",
+        language=family_lang,
         actor=actor,
     )
     return {"approved": True, "family_call": {"session_id": session.id, "checkin_id": checkin.id}}

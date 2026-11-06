@@ -278,7 +278,32 @@ def test_checkin_user_data_retires_notes_and_sends_exact_share_sentence(demo_cli
 
 # ---------------------------------------------------------------- live mode (Bolna mocked)
 
+def test_calls_are_simulated_until_real_calls_are_switched_on(live_client) -> None:
+    route = live_client.bolna.post("/call").respond(200, json={"execution_id": "ex-sim", "status": "queued"})
+    live_client.bolna.get("/user/me").respond(200, json={"wallet": 377})
+    login(live_client, "u-ravi")
+    mode = live_client.get("/api/auth/call-mode").json()
+    assert mode == {"live": False, "available": True, "wallet": 377}
+    r = live_client.post("/api/family/call", json={"phone": PHONE})
+    assert r.status_code == 201, r.text
+    c = _wait_checkin(live_client, r.json()["checkin_id"])
+    assert c["call_ops"]["simulated"] is True and not route.called  # no Bolna call, no credits
+    assert live_client.put("/api/auth/call-mode", json={"live": True}).json()["live"] is True
+    login(live_client, "u-meera")  # the switch is shared by all three apps
+    assert live_client.get("/api/auth/call-mode").json()["live"] is True
+    login(live_client, "u-ravi")
+    assert live_client.post("/api/family/call", json={"phone": PHONE}).status_code == 201
+    assert route.called  # now a real Bolna call
+
+
+def test_offline_server_cannot_switch_to_real_calls(demo_client) -> None:
+    login(demo_client, "u-ravi")
+    assert demo_client.get("/api/auth/call-mode").json()["available"] is False
+    assert demo_client.put("/api/auth/call-mode", json={"live": True}).status_code == 409
+
+
 def test_live_checkin_sends_notes_and_topics_and_reads_the_transcript(live_client) -> None:
+    live_client.put("/api/auth/call-mode", json={"live": True}, headers=auth())
     route = live_client.bolna.post("/call").respond(200, json={"execution_id": "ex-ci-1", "status": "queued"})
     r = live_client.post("/api/family/call", json={"phone": PHONE, "name": "Raghunath ji"}, headers=auth())
     assert r.status_code == 201, r.text
@@ -302,3 +327,51 @@ def test_live_checkin_sends_notes_and_topics_and_reads_the_transcript(live_clien
     assert c["message_for_family"] is None
     queue = live_client.get("/api/care/queue", headers=auth()).json()["items"]
     assert queue[0]["level"] == "red" and queue[0]["category"] == "fall"
+
+
+# ---------------------------------------------------------------- add a parent, call language, reset
+
+def test_family_adds_a_parent_with_a_preferred_language(demo_client) -> None:
+    login(demo_client, "u-appa")
+    assert demo_client.post("/api/people/parents", json={"full_name": "X Y"}).status_code == 403  # family only
+    login(demo_client, "u-ravi")
+    r = demo_client.post("/api/people/parents", json={
+        "full_name": "Kamala Sharma", "call_name": "Amma", "age": 68, "city": "Pune", "language": "hi",
+        "relation": "son", "share_level": "health",
+    })
+    assert r.status_code == 201, r.text
+    amma = r.json()
+    assert amma["language"] == "hi" and amma["call_name"] == "Amma"
+    me = demo_client.get("/api/auth/me").json()
+    assert {p["call_name"] for p in me["parents"]} == {"Appa", "Amma"}
+    assert demo_client.get(f"/api/family/home?parent_id={amma['id']}").json()["recent"] == []  # a fresh timeline
+    elders = demo_client.get("/api/auth/me?app=elder").json()["demo_users"]
+    assert any(u["name"] == "Kamala Sharma" for u in elders)  # she can open her own elder page
+
+
+def test_call_language_preferred_chosen_or_ask_first(live_client) -> None:
+    route = live_client.bolna.post("/call").respond(200, json={"execution_id": "ex-lang", "status": "queued"})
+    live_client.bolna.get("/user/me").respond(200, json={"wallet": 300})
+    login(live_client, "u-ravi")
+    live_client.put("/api/auth/call-mode", json={"live": True})
+    amma = live_client.post("/api/people/parents", json={"full_name": "Kamala Sharma", "call_name": "Amma",
+                                                        "language": "hi"}).json()
+
+    def sent(**body):
+        assert live_client.post("/api/family/call", json={"phone": PHONE, "parent_id": amma["id"], **body}).status_code == 201
+        return json.loads(route.calls.last.request.content)["user_data"]
+
+    assert sent()["agent_language"] == "hi"  # her preferred language
+    assert sent(language="en")["agent_language"] == "en"  # chosen for this call only
+    ask = sent(language="ask")
+    assert ask["agent_language"] == "en" and ask["language_note"].startswith("Start by asking")
+    assert live_client.get(f"/api/family/home?parent_id={amma['id']}").json()["parent"]["language"] == "hi"  # unchanged
+
+
+def test_reset_removes_added_parents_and_keeps_the_sample_family(demo_client) -> None:
+    login(demo_client, "u-ravi")
+    demo_client.post("/api/people/parents", json={"full_name": "Kamala Sharma", "call_name": "Amma"})
+    assert demo_client.post("/api/people/reset-demo").json()["removed"] == 1
+    me = demo_client.get("/api/auth/me").json()
+    assert [p["call_name"] for p in me["parents"]] == ["Appa"]
+    assert not any(u["name"] == "Kamala Sharma" for u in demo_client.get("/api/auth/me?app=elder").json()["demo_users"])

@@ -1,10 +1,10 @@
-# Smriti: a 5-minute phone memory check in Indian languages
+# Smriti: every week, someone remembers
 
-**Smriti calls an older person, runs a short, friendly memory check by voice in Hindi, Kannada or English, and gives the family a clear report: Normal / Uncertain - retest / Refer to clinician / Invalid call. It never diagnoses. Every uncertain, refer or invalid result goes to a human reviewer.**
+**Smriti is an AI companion that phones older parents in their own language, listens like a caring nurse, remembers what they said, and makes sure the family acts when something matters. A short memory check, scored by fixed rules, runs every few months as part of those regular check-ins. It never diagnoses: a person on the care team reviews every concern before the family is called.**
 
-Built on [Bolna](https://bolna.ai) for the Bolna Voice AI Buildathon 2026. Inspired by the 10/66 Dementia Research Group battery, which was designed to be fair to people with little or no schooling.
+Built on [Bolna](https://bolna.ai) for the Bolna Voice AI Buildathon 2026. The memory check is inspired by the 10/66 Dementia Research Group battery, which was designed to be fair to people with little or no schooling.
 
-> **Pilot, not validated, never diagnoses.** All cutoffs are placeholders in [`config/scoring.yaml`](config/scoring.yaml). See [ethics and limits](docs/ethics_and_limits.md).
+> **Pilot, not validated, never diagnoses.** All cutoffs are placeholders in [`config/scoring.yaml`](config/scoring.yaml). See [ethics and limits](docs/ethics_and_limits.md), the product [blueprint](docs/BLUEPRINT.md), the [demo plan](docs/DEMO_PLAN.md) and the [hard questions](docs/DEMO_QA.md).
 
 ---
 
@@ -12,11 +12,44 @@ Built on [Bolna](https://bolna.ai) for the Bolna Voice AI Buildathon 2026. Inspi
 
 | | |
 |---|---|
-| Hosted demo | _NEXT: deploy link goes here (see checklist below)_ |
-| Live agent on Bolna | Three agents (Hindi, Kannada, English) are set up on Bolna; the first real Hindi call ran end to end on 5 Nov 2026 (see *Live status*) |
-| Offline, on your laptop | 2 minutes, no keys: see the quickstart below |
+| Three apps on your laptop | `python scripts/run_demo.py`: family app on :8000, elder app on :8001, care-team app on :8002, live-synced (see below) |
+| Live agents on Bolna | Five agents: weekly **check-in** (11 Indian languages), **call to the family**, and the **memory check** (multilingual, plus Kannada and English backups). Real calls have run end to end since 5 Nov 2026 (see *Live status*) |
+| Offline, no keys | `DEMO_MODE=1`: every call is simulated through the same pipeline; Bolna is never contacted |
 
-The offline demo runs the **real scoring engine** on five realistic sample calls (four Hinglish, one Kannada; made-up, no real people) and lets you simulate a full call: Start → Live → Report → Reviewer queue. The web UI is in English, हिन्दी and ಕನ್ನಡ.
+## The three apps
+
+One server, three ports, one database. Anything done in one app (a call, a review, someone joining) appears in the others within a second, over Server-Sent Events.
+
+| Port | Who | What they do |
+|---|---|---|
+| **:8000 Family** (`/smriti.html`) | Son, daughter, grandchild | Today, timeline ("the thread"), calendar (Add to Google Calendar, .ics), memory, reports and a printable doctor summary, **schedules** with their own questions ("Did you take your BP tablet?"), **family circle** (Smriti IDs with QR, contacts by phone or ID), history, **+ Add a parent**, parent switcher |
+| **:8001 Elder** | The parent (owner of the circle) | Big-text page: say yes or no to new members, **call me now**, choose the call language, choose what the family can see, **pause all calls**, own Smriti ID |
+| **:8002 Care team** | Clinic or care partner | Patients, **review queue** (red first), transcript and audio, approve → Smriti calls the family and offers a doctor's visit, order a memory check, call costs from Bolna |
+
+- **Demo login:** pick a person, no password. Each port has its own login cookie, so all three can be open side by side.
+- **Screen language:** English · हिंदी · ಕನ್ನಡ (the elder app opens in the parent's language).
+- **Real calls switch** (sidebar of every app): off by default, so every call is simulated and **no Bolna credits are used**. Turning it on asks first and shows the wallet. The switch is shared by all three apps and can never turn on for an offline server.
+- **Language of a call:** each parent has a preferred language (any of 11). Every call dialog can use it, pick another language for that call only, or **"Let them choose"** (Smriti opens in English and asks). People can also switch mid-call by asking.
+- **Who decides what:** only the elder changes what is shared, their language, or pauses calls, and approves who joins. Only the care team sees the review queue. Safety concerns (e.g. someone hurting them) never go to the family.
+
+### Run the demo
+
+```bash
+python scripts/seed_family.py --reset   # sample family: Appa (Kannada), Ravi, Priya (waiting to join), Dr. Meera
+python scripts/run_demo.py              # family :8000 · elder :8001 · care team :8002
+```
+
+Ports come from `FAMILY_PORT`, `ELDER_PORT`, `CLINIC_PORT` in `.env`. **+ Add a parent** creates a fresh profile (with its own elder login) for a live demo; **Reset** removes every added profile and keeps the sample family.
+
+### What a check-in call sounds like
+
+Smriti greets them and asks if it's a good time, promises she will never ask for money, bank details or an OTP, then asks open questions like a good nurse: *"How are you feeling today? Has anything new been bothering you?"*, then gently covers sleep, appetite, energy, mood, getting out, medicines. She answers what they said first, keeps turns to one or two sentences, follows up on last time **once** (never the same topic twice), asks the family's own questions, and closes with *"Is there anything you'd like me to tell Ravi?"* and exactly what will be shared. Emergencies (chest pain, a fall, breathlessness) get *"Please call 112 now"*; abuse gets the Elder Line, 14567.
+
+After the call, **fixed rules** ([`config/flags.yaml`](config/flags.yaml)) turn the parent's own words into green / yellow / red flags (e.g. "poor sleep came up in 2 calls this month"), the timeline updates, and anything yellow or red waits for the care team.
+
+## Offline memory-check pages
+
+The original memory-check pages still work: they run the **real scoring engine** on five realistic sample calls (four Hinglish, one Kannada; made-up, no real people) and let you simulate a full call: Start → Live → Report → Reviewer queue.
 
 ## Offline quickstart (Windows or Linux/macOS, zero keys)
 
@@ -113,6 +146,12 @@ Scoring is **deterministic and explainable**: Devanagari/Kannada → Latin trans
 | Indian-language voice stack: **Sarvam Saaras v4** STT and **Sarvam Bulbul v3** TTS in `hi`, `kn` and `en`, GPT-4.1-mini LLM, Plivo telephony, built-in **noise cancellation** (`noise_cancellation_level: 85`) | [`config/agent.json`](config/agent.json) |
 | Call controls: `hangup_after_silence` raised to 25 s for the 1-minute animal task, `call_terminate` = `MAX_CALL_MINUTES`, `check_user_online_message` in the call's language (Bolna's default is English), and a welcome message that asks a question | [`app/services/agent_builder.py`](app/services/agent_builder.py) |
 | Web Call SDK (`@bolna/web-call`, backend-minted `POST /web-call/session`) - optional | [`app/web/webcall.js`](app/web/webcall.js) |
+| **Check-in agent in 11 languages** (en, hi, kn, ta, te, ml, mr, bn, gu, pa, od) with one Bulbul v3 voice, `language_switch_trigger: requested_or_auto_detected`, per-call start language via `user_data.agent_language` | [`config/agent.json`](config/agent.json) → `kinds.checkin`, `create_agent.py --kind checkin` |
+| **Call to the family** agent (the care team approves, Smriti explains in plain words and offers a doctor's visit) | `kinds.family`, `create_agent.py --kind family` |
+| Faster barge-in for elderly callers: `number_of_words_for_interruption: 2`, transcriber `endpointing: 500` | [`config/agent.json`](config/agent.json) |
+| The memory check keeps one language once it starts: `language_switch_trigger: caller_requested` (switches only when asked) | `multilingual` block |
+| "Call me later": `auto_reschedule` (beta) on the check-in agent | `kinds.checkin.task_config_extra` |
+| Cost and duration of every call from the execution (`total_cost` in US cents, `conversation_duration`), wallet from `GET /user/me` | [`app/services/ops.py`](app/services/ops.py) |
 
 ## Live setup (when you have Bolna credits)
 
@@ -125,6 +164,7 @@ Scoring is **deterministic and explainable**: Devanagari/Kannada → Latin trans
    - **Kannada:** `python scripts/create_agent.py --language kn` → `BOLNA_AGENT_ID_KN`
    - **English:** `python scripts/create_agent.py --language en` → `BOLNA_AGENT_ID_EN` (if unset, English calls use the Hindi agent)
    - After changing the prompt or `config/agent.json`, push it to the existing agents with `--update` (plus `--language kn` / `--language en`).
+   - **Family product agents:** `python scripts/create_agent.py --kind checkin` → `BOLNA_AGENT_ID_CHECKIN`, and `--kind family` → `BOLNA_AGENT_ID_FAMILY` (update later with `--update --kind checkin|family`). Updating an agent places no calls and spends no credits.
 6. Set `DEMO_MODE=0`. Call your own phone end to end: `python scripts/test_call.py +91XXXXXXXXXX --language hi|kn|en`
    - **Trial accounts** can only call **verified numbers**: add the number under verified numbers in the Bolna dashboard first, or Bolna answers `400 Trial accounts can only make calls to verified phone numbers`.
 7. For webhooks, `PUBLIC_BASE_URL` must be a public https URL (deploy, or `cloudflared tunnel --url http://localhost:8000`), then `python scripts/create_agent.py --update`. Without it the poller fetches results every 10 s.
@@ -153,6 +193,12 @@ What the real transcript taught us, and what we changed:
 | Multilingual call: the person chose English and the whole call stayed in English, but "that's all" during animal naming (transcribed as "यह बंद हुई") triggered the distress stop and the call ended | the stop rule now needs clear distress or a clear request to end the whole call; "done / बस / ಅಷ್ಟೇ" moves to the next task, and when unsure the agent asks "Shall we continue?" |
 | English list words misheard on that call ("river slipper" came out as "Reverse sweeper", "fan" as "Pan") | to try next: Deepgram `nova-3` as the English transcriber |
 | An answer split over two turns ("8" … "एक। छः।") | already handled: the hearing check joins split answers |
+| First live **check-in** call: the agent kept talking when the person started speaking | interruption after 2 words (was 3), endpointing 500 ms (was 900), and one or two sentences per turn in the prompt |
+| It kept asking about the same knee pain | notes from last time are used once and then retired; the check-in now opens like a nurse ("How are you feeling today? Anything new bothering you?") and covers sleep, appetite, energy, mood, medicines |
+| It ignored "ಯಾವುದು?" ("which one?") and went on with its script | "listen first": always answer what they said before asking anything new |
+| It told the elder it would share *only* that he was fine, although he had chosen to share health worries | the server now sends the exact sharing sentence instead of a setting code |
+| "The doctor put a rod in" was missed by the word rules | known limit of fixed rules; the care team reads the transcript (Bolna post-call extraction as *suggestions* is on the roadmap) |
+| On the memory call the person said "Sure" in English, but the agent continued in the family's suggested language | the person's own language wins; once Task one starts the language is locked |
 
 ### NEXT
 
@@ -183,19 +229,23 @@ What the real transcript taught us, and what we changed:
 
 ```
 app/
-  main.py            app factory, static UI, startup: DB, demo seed, poller
+  main.py            app factory, static UI, startup: DB, demo seed, poller, scheduler
   settings.py        all settings from .env (pydantic-settings)
-  models.py db.py    SQLite tables: Session, CallArtifact, Score, Review
-  api/               thin routes: sessions, webhook, review, demo, health
-  services/          I/O: bolna_client, orchestrator, poller, segmenter, asr_fallback, report
+  models.py db.py    SQLite tables: Session, CallArtifact, Score, Review (+ missing columns added at startup)
+  api/               routes: sessions, webhook, review, demo, health, events (SSE), ops, family (3 apps)
+  family/            the family product: models, flag rules, service (calls, care team, timeline, reports),
+                     people (logins, contacts, circles, schedules, history), auth (demo login per port),
+                     callmode (real vs simulated calls), scheduler, seed (sample family)
+  services/          I/O: bolna_client, orchestrator, poller, segmenter, asr_fallback, report, events, ops
   scoring/           pure functions: normalize, matching, tasks, outcome, engine
-  web/               static pages + i18n (en/hi/kn)
-config/              scoring.yaml, wordlists.yaml, animals.yaml, agent.json
-prompts/             smriti_agent.md (voice agent script with marker phrases)
-scripts/             create_agent, check_live, test_call, seed_demo
+  web/               smriti.html (+ smriti.js, smriti-apps.js, smriti-i18n.js): the three apps;
+                     index/start/live/report/review: the original memory-check pages (en/hi/kn)
+config/              scoring.yaml, wordlists.yaml, animals.yaml, agent.json, flags.yaml, playbook.yaml
+prompts/             smriti_agent.md (memory check), checkin_agent.md, family_agent.md
+scripts/             run_demo (3 ports), seed_family, create_agent (--kind), check_live, test_call, seed_demo
 fixtures/            5 sample calls: normal, uncertain, refer, invalid_hearing (Hinglish), kannada
-tests/               scoring, API, Bolna client (respx)
-docs/                architecture, scoring spec, ethics, pilot log, deck notes
+tests/               scoring, API, Bolna client, live updates, family product (Bolna always mocked)
+docs/                blueprint, demo plan, hard questions, architecture, scoring spec, ethics, pilot log
 ```
 
 ## Privacy and safety
@@ -214,7 +264,10 @@ docs/                architecture, scoring spec, ethics, pilot log, deck notes
 - Speech recognition of older voices, regional accents and noisy lines will cause misses; fuzzy matching helps but cannot fix everything. INVALID exists to catch bad calls, and humans review the rest.
 - The animal-naming minute is not timed precisely: Bolna's transcript has no per-turn timestamps, so we count the whole segment (`experimental_timing: true`) unless the optional Deepgram pass over the recording is enabled.
 - The town/village answer is accepted if given; it cannot be verified automatically.
-- Hindi, Kannada and English only, for both the calls and the web UI.
+- The **memory check** runs in Hindi, Kannada and English only (word lists and scoring exist for these). The **check-in** speaks 11 languages, but the flag rules from the parent's words cover Hindi, Kannada and English; for the other 8 the care team reads the transcript. The ta/te/ml/mr/bn/gu/pa/od welcome lines and the Hindi/Kannada screen text need a native speaker's review.
+- Phone numbers are not stored in plain text, so scheduled calls run automatically only in demo mode (`SCHEDULER_ENABLED=1`); in live mode a person presses **Run now**. An encrypted number store comes next.
+- Bolna trial accounts can only call numbers verified in the Bolna dashboard; there is no API to verify a number from the app.
+- Demo login has no passwords. Real accounts (phone + OTP) are needed before any real use.
 
 ## Roadmap
 
@@ -222,7 +275,9 @@ docs/                architecture, scoring spec, ethics, pilot log, deck notes
 2. Clinical validation with a memory clinic: compare against a clinician assessment, derive education-adjusted cutoffs.
 3. More languages (Marathi, Bengali, Tamil, Telugu…): new word lists + lexicons, same engine.
 4. Regulatory path: as a screening aid this is likely Software as a Medical Device under India's Medical Devices Rules 2017 (CDSCO); plan for that before any clinical claim. Personal data under the DPDP Act 2023.
-5. Caregiver follow-up calls, retest reminders, clinic dashboards.
+5. ~~Caregiver follow-up calls, retest reminders, clinic dashboards~~: built (call to the family, schedules, care-team app).
+6. More health checks a phone call can do well, each in its own announced call: mood (PHQ-9 / GDS-15), falls (CDC STEADI questions), loneliness (UCLA-3), frailty (FRAIL), plus the family's own observations (10/66 informant questions). No combined score across checks.
+7. Bolna post-call extraction as *suggested* notes for the care team; booking through Bolna's Cal.com tools; caller ID via Truecaller verification; India data residency.
 
 ## License
 

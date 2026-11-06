@@ -29,7 +29,9 @@ async def run_once(settings: Settings) -> int:
             s.last_run_at = utcnow()
             db.add(s)
             db.commit()
-            if not parent or parent.calls_paused or not settings.demo_mode:
+            from app.family import callmode
+
+            if not parent or parent.calls_paused or not callmode.effective(db, settings).demo_mode:
                 people.log(
                     db, s.parent_id, f"“{s.label}” is due. Start it from the app (Run now).", kind="schedule", ref=s.id
                 )

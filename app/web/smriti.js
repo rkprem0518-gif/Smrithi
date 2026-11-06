@@ -97,9 +97,10 @@ function renderNav(route) {
   const u = state.me && state.me.user;
   const p = state.parent;
   const ports = state.me && state.me.ports;
-  $("#sideFoot").innerHTML = u ? `<div class="who"><div class="avatar sm">${esc(u.name[0])}</div><div><b>${esc(u.name)}</b><small>${esc(u.role_label)}${u.org ? " · " + esc(u.org) : ""}</small></div></div>
+  $("#sideFoot").innerHTML = u ? `${typeof parentSwitcher === "function" ? parentSwitcher() : ""}<div class="who"><div class="avatar sm">${esc(u.name[0])}</div><div><b>${esc(u.name)}</b><small>${esc(u.role_label)}${u.org ? " · " + esc(u.org) : ""}</small></div></div>
     ${p ? `<div class="small muted" style="margin-top:10px">${esc(p.call_name)} speaks ${LANG[p.language] || p.language}${p.calls_paused ? " · <b>calls paused</b>" : ""}</div>` : ""}
     <div class="small muted" style="margin-top:6px">${tr("Smriti ID")} <b>${esc(u.smriti_id)}</b></div>
+    ${typeof callModeSwitch === "function" ? callModeSwitch() : ""}
     <div style="margin-top:12px">${uiLangSwitch()}</div>
     <button class="btn quiet sm" id="logout" style="margin-top:12px;width:100%">${tr("Log out")}</button>
     ${ports ? `<div class="small muted" style="margin-top:12px">${tr("Demo apps")}: <a href="${ports.family}">Family</a> · <a href="${ports.elder}">Elder</a> · <a href="${ports.clinic}">Clinic</a></div>` : ""}` : "";
@@ -386,9 +387,11 @@ function callDialog(kind) {
   const p = state.parent;
   const memory = kind === "memory";
   const el = modal(`<h2>${memory ? "Start a memory check" : `Call ${esc(p.call_name)} now`}</h2>
+    ${typeof callModeNote === "function" ? callModeNote() : ""}
     <p class="muted">${memory ? "About 5 minutes. Smriti asks which language to use, then runs the memory check." : `Smriti will ask how ${esc(p.call_name)} has been, remember last week, and write notes here when the call ends.`}</p>
-    <label class="field"><span>${tr("Phone number")}</span><input id="ph" inputmode="tel" autocomplete="off" placeholder="+91 98765 43210" value="${esc(store.get("parentPhone"))}"></label>
-    ${memory ? "" : `<label class="field"><span>${tr("Who will pick up?")}</span><input id="nm" value="${esc(store.get("parentName", p.honorific || p.call_name))}"></label>`}
+    <label class="field"><span>${tr("Phone number")}</span><input id="ph" inputmode="tel" autocomplete="off" placeholder="+91 98765 43210" value="${esc(store.get("parentPhone." + state.parentId))}"></label>
+    ${memory ? "" : `<label class="field"><span>${tr("Who will pick up?")}</span><input id="nm" value="${esc(store.get("parentName." + state.parentId, p.honorific || p.call_name))}"></label>`}
+    ${memory ? `<p class="small muted" style="margin-top:12px">Smriti opens in English and asks which language to use (English, Hindi or Kannada).</p>` : (typeof languagePicker === "function" ? languagePicker(p) : "")}
     ${memory || state.app !== "family" ? "" : `<label class="field"><span>Anything Smriti should ask? (optional, one per line)</span><textarea id="qs" rows="2" style="width:100%;border-radius:12px;border:1.5px solid var(--line);padding:10px 14px;font:inherit;background:var(--paper)" placeholder="Did you take your BP tablet today?"></textarea></label>`}
     <p class="small muted" style="margin-top:12px">The number stays in this browser. Smriti's server only keeps a scrambled form of it.</p>
     <div class="err" id="err" hidden></div>
@@ -397,12 +400,12 @@ function callDialog(kind) {
   $("#go", el).onclick = async () => {
     const phone = $("#ph", el).value.replace(/[\s-]/g, "");
     const name = memory ? null : $("#nm", el).value.trim();
-    store.set("parentPhone", phone);
-    if (name) store.set("parentName", name);
+    store.set("parentPhone." + state.parentId, phone);
+    if (name) store.set("parentName." + state.parentId, name);
     $("#go", el).disabled = true;
     try {
       const qs = $("#qs", el) ? $("#qs", el).value.split("\n").map((x) => x.trim()).filter(Boolean).slice(0, 5) : [];
-      const r = await api(memory ? "/api/family/memory-check" : "/api/family/call", { method: "POST", body: { phone: phone || null, name, questions: qs, parent_id: state.parentId } });
+      const r = await api(memory ? "/api/family/memory-check" : "/api/family/call", { method: "POST", body: { phone: phone || null, name, questions: qs, parent_id: state.parentId, language: $("#callLang", el) ? $("#callLang", el).value || null : null } });
       closeModal();
       showLive(r.session_id, r.checkin_id, memory ? `Memory check with ${p.call_name}` : `Smriti is calling ${name || p.call_name}`, kind);
     } catch (e) {
@@ -412,9 +415,10 @@ function callDialog(kind) {
 }
 
 function approveDialog(c, p) {
-  const el = modal(`<h2>Approve and call ${esc(p.family_name)}</h2>
+  const el = modal(`<h2>Approve and call ${esc(p.family_name)}</h2>${typeof callModeNote === "function" ? callModeNote() : ""}
     <p class="muted">Smriti will explain ${c.type === "memory" ? "the memory check result" : "what " + esc(p.call_name) + " said"} in plain words and offer a doctor's visit on Saturday.</p>
     <label class="field"><span>${esc(p.family_name)}'s phone number</span><input id="fph" inputmode="tel" placeholder="+91 98765 43210" value="${esc(store.get("familyPhone"))}"></label>
+    <label class="field"><span>Language for the call to ${esc(p.family_name)}</span><select id="famLang"><option value="en">English</option><option value="hi">हिंदी · Hindi</option><option value="kn">ಕನ್ನಡ · Kannada</option></select></label>
     <label class="field"><span>Note for the record (optional)</span><input id="note" placeholder="e.g. agree with the result"></label>
     <div class="err" id="err" hidden></div>
     <div class="actions"><button class="btn quiet" id="cancel">Cancel</button><button class="btn" id="go">${ic("phone")} Approve and call</button></div>`);
@@ -424,7 +428,7 @@ function approveDialog(c, p) {
     store.set("familyPhone", phone);
     $("#go", el).disabled = true;
     try {
-      const r = await api(`/api/care/${c.type}/${c.id}/approve`, { method: "POST", body: { family_phone: phone || null, note: $("#note", el).value } });
+      const r = await api(`/api/care/${c.type}/${c.id}/approve`, { method: "POST", body: { family_phone: phone || null, note: $("#note", el).value, language: $("#famLang", el).value } });
       closeModal();
       if (r.family_call) showLive(r.family_call.session_id, r.family_call.checkin_id, `Smriti is calling ${p.family_name}`, "family");
       else { toast(r.note || "Approved."); route(); }

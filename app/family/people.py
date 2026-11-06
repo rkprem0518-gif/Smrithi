@@ -14,6 +14,19 @@ from app.family.models import Activity, Circle, CircleMember, Contact, Parent, S
 from app.models import utcnow
 from app.services import events
 
+_LANG_NAMES = {
+    "en": "English",
+    "hi": "Hindi",
+    "kn": "Kannada",
+    "ta": "Tamil",
+    "te": "Telugu",
+    "ml": "Malayalam",
+    "mr": "Marathi",
+    "bn": "Bengali",
+    "gu": "Gujarati",
+    "pa": "Punjabi",
+    "od": "Odia",
+}
 ROLE_LABEL = {"elder": "Elder", "family": "Family", "clinic": "Care team"}
 
 
@@ -246,3 +259,116 @@ def due(s: Schedule, now: datetime | None = None) -> bool:
     if not s.active or (s.days and slot.weekday() not in s.days) or not (slot <= now < slot + timedelta(minutes=10)):
         return False
     return s.last_run_at is None or _aware(s.last_run_at) < slot
+
+
+# ---------------------------------------------------------------- new parents (live demo) and reset
+
+
+def create_parent(
+    db: DBSession,
+    creator: User,
+    *,
+    full_name: str,
+    call_name: str,
+    age: int | None,
+    city: str,
+    language: str,
+    relation: str,
+    share_level: str,
+) -> Parent:
+    """A family member adds their parent. The parent gets their own login (elder app) and owns the new circle;
+    the creator joins it. In the real product the parent agrees on Smriti's first call; here it is a demo."""
+    from app.family.models import ShareLevel
+
+    elder = User(
+        name=full_name,
+        role="elder",
+        smriti_id=new_smriti_id(db, call_name or full_name),
+        age=age,
+        language=language,
+        title=call_name,
+        is_demo=True,
+    )
+    db.add(elder)
+    db.commit()
+    db.refresh(elder)
+    first = creator.name.split()[0]
+    parent = Parent(
+        full_name=full_name,
+        call_name=call_name or full_name.split()[0],
+        honorific=full_name.split()[0] + " ji",
+        city=city,
+        language=language,
+        family_name=first,
+        relation=relation,
+        share_level=share_level if share_level in ShareLevel.ALL_LEVELS else ShareLevel.HEALTH,
+        consent_at=utcnow(),
+        user_id=elder.id,
+        age=age,
+        interests=[],
+        is_demo=False,
+    )
+    db.add(parent)
+    db.commit()
+    db.refresh(parent)
+    circle = Circle(name=f"{call_name or full_name}'s circle", parent_id=parent.id)
+    db.add(circle)
+    db.commit()
+    db.add(CircleMember(circle_id=circle.id, user_id=elder.id, role="elder", status="active", decided_at=utcnow()))
+    db.add(
+        CircleMember(
+            circle_id=circle.id,
+            user_id=creator.id,
+            role="family",
+            status="active",
+            invited_by=elder.id,
+            decided_at=utcnow(),
+        )
+    )
+    db.add(Contact(owner_id=creator.id, contact_user_id=elder.id))
+    db.add(Contact(owner_id=elder.id, contact_user_id=creator.id))
+    db.commit()
+    log(
+        db,
+        parent.id,
+        f"{creator.name} added {full_name}. Smriti will speak {_LANG_NAMES.get(language, language)} on calls.",
+        kind="circle",
+        actor=creator,
+    )
+    return parent
+
+
+def reset_created(db: DBSession) -> int:
+    """Delete every parent added in the app (demo rehearsals). The sample family (Appa) stays."""
+    from app.family.models import Appointment, CheckIn, Flag, Note
+    from app.models import CallArtifact, Review, Score, Session
+
+    parents = db.exec(select(Parent).where(Parent.is_demo == False)).all()  # noqa: E712
+    for parent in parents:
+        for model in (Flag, Note, Appointment, Schedule, Activity):
+            for row in db.exec(select(model).where(model.parent_id == parent.id)).all():
+                db.delete(row)
+        for c in db.exec(select(CheckIn).where(CheckIn.parent_id == parent.id)).all():
+            if c.session_id:
+                for model in (Score, CallArtifact, Review):
+                    for row in db.exec(select(model).where(model.session_id == c.session_id)).all():
+                        db.delete(row)
+                s = db.get(Session, c.session_id)
+                if s:
+                    db.delete(s)
+            db.delete(c)
+        for circle in db.exec(select(Circle).where(Circle.parent_id == parent.id)).all():
+            for m in db.exec(select(CircleMember).where(CircleMember.circle_id == circle.id)).all():
+                db.delete(m)
+            db.delete(circle)
+        db.commit()
+        elder = db.get(User, parent.user_id) if parent.user_id else None
+        if elder:
+            for c in db.exec(select(Contact)).all():
+                if elder.id in (c.owner_id, c.contact_user_id):
+                    db.delete(c)
+            db.commit()
+            db.delete(elder)
+        db.delete(parent)
+        db.commit()
+    return len(parents)

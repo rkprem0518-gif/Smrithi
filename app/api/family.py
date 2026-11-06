@@ -21,7 +21,7 @@ from sqlmodel import select
 
 from app.api.events import SSE_HEADERS, format_sse
 from app.db import get_db
-from app.family import people, service
+from app.family import callmode, people, service
 from app.family.auth import (
     APPS,
     Principal,
@@ -135,6 +135,39 @@ def logout(request: Request, response: Response) -> dict:
     return {"ok": True}
 
 
+# ---------------------------------------------------------------- real calls or simulated (Bolna credits)
+
+
+class CallMode(BaseModel):
+    live: bool
+
+
+@auth.get("/call-mode")
+async def get_call_mode(who: Principal = Depends(require_principal), db: DBSession = Depends(get_db)) -> dict:
+    from app.services import ops
+
+    s = get_settings()
+    out = {"live": callmode.live(db, s), "available": callmode.available(s), "wallet": None}
+    if out["available"]:
+        account = await ops.bolna_account(s)  # cached for a minute; no call is placed
+        out["wallet"] = account.get("wallet")
+    return out
+
+
+@auth.put("/call-mode")
+async def put_call_mode(
+    body: CallMode, who: Principal = Depends(require_principal), db: DBSession = Depends(get_db)
+) -> dict:
+    s = get_settings()
+    if body.live and not callmode.available(s):
+        raise HTTPException(409, "Real calls need the live server (DEMO_MODE=0 with Bolna keys). Calls stay simulated.")
+    now = callmode.set_live(db, s, body.live, who.name)
+    for pid in who.parent_ids:
+        what = "Real calls on: calls now use Bolna credits." if now else "Real calls off: calls are simulated."
+        people.log(db, pid, f"{who.name} switched {what[0].lower() + what[1:]}", kind="settings", actor=who.user)
+    return {"live": now, "available": callmode.available(s)}
+
+
 # ---------------------------------------------------------------- live updates for all three apps
 
 
@@ -154,6 +187,9 @@ async def live(request: Request, who: Principal = Depends(require_principal)) ->
                     event = await asyncio.wait_for(sub.queue.get(), timeout=keepalive)
                 except TimeoutError:
                     yield ": keep-alive\n\n"
+                    continue
+                if event.get("type") == "call_mode":  # the shared credits switch: every app shows it
+                    yield format_sse(event)
                     continue
                 pid = event.get("parent_id")
                 if pid not in allowed:
@@ -175,12 +211,14 @@ class CallRequest(BaseModel):
     name: str | None = Field(default=None, max_length=60)  # who will pick up (the judge, in a demo)
     parent_id: str | None = None
     questions: list[str] = Field(default_factory=list, max_length=5)
+    language: str | None = Field(default=None, max_length=4)  # None = their preferred language; "ask" = let them choose
 
 
 class ApproveRequest(BaseModel):
     family_phone: str | None = None
     note: str = Field(default="", max_length=500)
     parent_id: str | None = None
+    language: str | None = Field(default=None, max_length=4)
 
 
 class SettingsUpdate(BaseModel):
@@ -235,7 +273,9 @@ async def call_now(
     body: CallRequest, who: Principal = Depends(require_principal), db: DBSession = Depends(get_db)
 ) -> dict[str, Any]:
     parent = _parent(db, who, body.parent_id)
-    data, topics, remembered = service.checkin_user_data(db, parent, name=body.name, questions=body.questions)
+    data, topics, remembered = service.checkin_user_data(
+        db, parent, name=body.name, questions=body.questions, language=body.language
+    )
     try:
         session, c = await service.start_call(
             db,
@@ -246,6 +286,7 @@ async def call_now(
             user_data=data,
             topics=topics,
             remembered=remembered,
+            language=data["agent_language"],
             actor=who.user,
             allow_paused=who.role_for(parent.id) == "elder",  # "call me now" from the elder always works
         )
@@ -280,7 +321,7 @@ async def memory_check(
             schooling_years=None,
             phone=body.phone,
             client_ip="family-app",
-            settings=get_settings(),
+            settings=callmode.effective(db, get_settings()),
             enforce_rate_limit=False,
         )
     except orchestrator.SessionError as exc:
@@ -512,6 +553,7 @@ class ScheduleIn(BaseModel):
 class RunRequest(BaseModel):
     phone: str | None = None
     name: str | None = None
+    language: str | None = Field(default=None, max_length=4)
 
 
 def _schedules(db: DBSession, parent: Parent) -> list[Schedule]:
@@ -592,7 +634,9 @@ async def run_schedule(
     s.last_run_at = utcnow()
     db.add(s)
     db.commit()
-    req = CallRequest(phone=body.phone, name=body.name, parent_id=s.parent_id, questions=s.questions)
+    req = CallRequest(
+        phone=body.phone, name=body.name, parent_id=s.parent_id, questions=s.questions, language=body.language
+    )
     if s.kind == "memory":
         return await memory_check(req, who, db)
     return await call_now(req, who, db)
@@ -761,7 +805,15 @@ async def approve(
     parent = _parent(db, who, body.parent_id or _case_parent(db, case_type, case_id))
     try:
         return await service.approve_case(
-            db, parent, case_type, case_id, body.family_phone, get_settings(), note=body.note, actor=who.user
+            db,
+            parent,
+            case_type,
+            case_id,
+            body.family_phone,
+            get_settings(),
+            note=body.note,
+            actor=who.user,
+            language=body.language,
         )
     except service.FamilyError as exc:
         raise HTTPException(exc.status_code, str(exc)) from exc
@@ -790,3 +842,44 @@ def _case_parent(db: DBSession, case_type: str, case_id: str) -> str | None:
 
     row = db.get(Flag, case_id) if case_type == "flag" else db.get(CheckIn, case_id)
     return row.parent_id if row else None
+
+
+# ---------------------------------------------------------------- add a parent / reset demo profiles
+
+
+class NewParent(BaseModel):
+    full_name: str = Field(min_length=2, max_length=60)
+    call_name: str = Field(default="", max_length=30)  # what the family calls them: "Amma"
+    age: int | None = Field(default=None, ge=40, le=120)
+    city: str = Field(default="", max_length=40)
+    language: str = Field(default="en")
+    relation: str = Field(default="son", max_length=20)  # the family member's relation to them
+    share_level: str = Field(default="health")
+
+
+@circle.post("/parents", status_code=201)
+def add_parent(body: NewParent, who: Principal = Depends(require_principal), db: DBSession = Depends(get_db)) -> dict:
+    if not who.user or who.user.role != "family":
+        raise HTTPException(403, "Only a family member can add a parent")
+    if body.language not in LANGUAGES:
+        raise HTTPException(422, "Unknown language")
+    parent = people.create_parent(
+        db,
+        who.user,
+        full_name=body.full_name.strip(),
+        call_name=body.call_name.strip(),
+        age=body.age,
+        city=body.city.strip(),
+        language=body.language,
+        relation=body.relation.strip() or "family",
+        share_level=body.share_level,
+    )
+    return service.parent_out(db, parent)
+
+
+@circle.post("/reset-demo")
+def reset_demo(who: Principal = Depends(require_principal), db: DBSession = Depends(get_db)) -> dict:
+    if not who.staff and not (who.user and who.user.is_demo):
+        raise HTTPException(403, "Only demo accounts can reset demo data")
+    removed = people.reset_created(db)
+    return {"removed": removed}
