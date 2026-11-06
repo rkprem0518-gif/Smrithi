@@ -92,7 +92,10 @@ const APP_NAME = { family: "Family", elder: "For Appa", clinic: "Care team" };
 function renderNav(route) {
   const nav = NAV[state.app] || NAV.family;
   const link = ([r, label, icon]) => `<a href="#/${r}" class="${route === r ? "on" : ""}">${ic(icon)}<span>${tr(label)}</span></a>`;
-  $("#nav").innerHTML = `<div class="group">${tr(APP_NAME[state.app])}</div>${nav.map(link).join("")}`;
+  // The real-calls switch sits at the top of the sidebar on wide screens (always in view) and in the
+  // account panel on narrow screens, where the menu itself is hidden (CSS picks which copy shows).
+  const modeSwitch = typeof callModeSwitch === "function" && state.me && state.me.user ? callModeSwitch() : "";
+  $("#nav").innerHTML = `${modeSwitch ? `<div class="nav-mode">${modeSwitch}</div>` : ""}<div class="group">${tr(APP_NAME[state.app])}</div>${nav.map(link).join("")}`;
   $("#tabbar").innerHTML = nav.slice(0, 5).map(link).join("");
   const u = state.me && state.me.user;
   const p = state.parent;
@@ -100,7 +103,7 @@ function renderNav(route) {
   $("#sideFoot").innerHTML = u ? `${typeof parentSwitcher === "function" ? parentSwitcher() : ""}<div class="who"><div class="avatar sm">${esc(u.name[0])}</div><div><b>${esc(u.name)}</b><small>${esc(u.role_label)}${u.org ? " · " + esc(u.org) : ""}</small></div></div>
     ${p ? `<div class="small muted" style="margin-top:10px">${esc(p.call_name)} speaks ${LANG[p.language] || p.language}${p.calls_paused ? " · <b>calls paused</b>" : ""}</div>` : ""}
     <div class="small muted" style="margin-top:6px">${tr("Smriti ID")} <b>${esc(u.smriti_id)}</b></div>
-    ${typeof callModeSwitch === "function" ? callModeSwitch() : ""}
+    <div class="foot-mode">${typeof callModeSwitch === "function" ? callModeSwitch() : ""}</div>
     <div style="margin-top:12px">${uiLangSwitch()}</div>
     <button class="btn quiet sm" id="logout" style="margin-top:12px;width:100%">${tr("Log out")}</button>
     ${ports ? `<div class="small muted" style="margin-top:12px">${tr("Demo apps")}: <a href="${ports.family}">Family</a> · <a href="${ports.elder}">Elder</a> · <a href="${ports.clinic}">Clinic</a></div>` : ""}` : "";
