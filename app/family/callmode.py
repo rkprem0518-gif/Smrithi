@@ -1,14 +1,15 @@
 """Real calls (spend Bolna credits) or simulated calls, switchable at runtime from any of the three apps.
 
 Off by default: every call button plays a simulated call through the same pipeline (timeline, flags, care
-team, live updates) without contacting Bolna. Turning it on makes the next calls real. A server started with
-DEMO_MODE=1 has no Bolna keys loaded, so it can never switch to real calls.
+team, live updates) without contacting Bolna. Turning it on makes the next calls real. It can be turned on once
+Bolna is connected: keys in .env (DEMO_MODE=0), or an account added from the app (see bolna_link).
 """
 
 from __future__ import annotations
 
 from sqlmodel import Session as DBSession
 
+from app.family import bolna_link
 from app.family.models import AppSetting
 from app.models import utcnow
 from app.services import events
@@ -17,14 +18,15 @@ from app.settings import Settings
 KEY = "live_calls"
 
 
-def available(settings: Settings) -> bool:
-    """Real calls are possible only on a live server with Bolna configured."""
-    return not settings.demo_mode and settings.bolna_configured
+def available(db: DBSession, settings: Settings) -> bool:
+    """Real calls are possible once Bolna is connected: keys in .env, or an account added in the app."""
+    s = bolna_link.merged(db, settings)
+    return not s.demo_mode and s.bolna_configured
 
 
 def live(db: DBSession, settings: Settings) -> bool:
     row = db.get(AppSetting, KEY)
-    return available(settings) and bool(row and row.value == "1")
+    return available(db, settings) and bool(row and row.value == "1")
 
 
 def set_live(db: DBSession, settings: Settings, on: bool, by: str) -> bool:
@@ -39,4 +41,4 @@ def set_live(db: DBSession, settings: Settings, on: bool, by: str) -> bool:
 
 def effective(db: DBSession, settings: Settings) -> Settings:
     """The settings a call should use: a simulated call gets a copy with demo_mode on."""
-    return settings if live(db, settings) else settings.model_copy(update={"demo_mode": True})
+    return bolna_link.merged(db, settings) if live(db, settings) else settings.model_copy(update={"demo_mode": True})

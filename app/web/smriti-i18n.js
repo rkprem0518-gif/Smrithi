@@ -11,11 +11,14 @@ let UI_LANG = "en";
 
 const STR = {
   hi: {
+    "More": "और", "Pages": "पन्ने", "Calls": "कॉल", "Profiles": "प्रोफ़ाइल", "You": "आप",
+    "Smriti will call you": "स्मृति आपको फ़ोन करेगी",
+    "Smriti will ring your phone in a moment for a short chat.": "स्मृति थोड़ी देर में आपको छोटी-सी बातचीत के लिए फ़ोन करेगी।",
     // menus and app names
     "Today": "आज", "Timeline": "समय-रेखा", "Calendar": "कैलेंडर", "Memory": "याददाश्त", "Reports": "रिपोर्ट",
     "Schedules": "कॉल का समय", "Family circle": "परिवार", "History": "इतिहास", "Home": "होम", "My family": "मेरा परिवार",
     "My calls": "मेरी बातचीत", "Patients": "मरीज़", "Review queue": "जाँच के लिए", "Behind the call": "कॉल का ख़र्च",
-    "Family": "परिवार", "For Appa": "बुज़ुर्गों के लिए", "Care team": "देखभाल टीम", "Log out": "लॉग आउट",
+    "Family": "परिवार", "For elders": "बुज़ुर्गों के लिए", "Care team": "देखभाल टीम", "Log out": "लॉग आउट",
     "Smriti ID": "स्मृति ID", "Demo apps": "डेमो ऐप", "Screen language": "स्क्रीन की भाषा",
     // login
     "Every week, someone remembers": "हर हफ़्ते, कोई याद रखता है",
@@ -58,10 +61,13 @@ const STR = {
     "Waiting for your family's elder to say yes": "परिवार के बुज़ुर्ग की हाँ का इंतज़ार है",
   },
   kn: {
+    "More": "ಇನ್ನಷ್ಟು", "Pages": "ಪುಟಗಳು", "Calls": "ಕರೆಗಳು", "Profiles": "ಪ್ರೊಫೈಲ್‌ಗಳು", "You": "ನೀವು",
+    "Smriti will call you": "ಸ್ಮೃತಿ ನಿಮಗೆ ಕರೆ ಮಾಡುತ್ತಾಳೆ",
+    "Smriti will ring your phone in a moment for a short chat.": "ಸ್ವಲ್ಪ ಮಾತಾಡಲು ಸ್ಮೃತಿ ಸ್ವಲ್ಪ ಹೊತ್ತಿನಲ್ಲಿ ನಿಮ್ಮ ಫೋನ್‌ಗೆ ಕರೆ ಮಾಡುತ್ತಾಳೆ.",
     "Today": "ಇಂದು", "Timeline": "ಸಮಯರೇಖೆ", "Calendar": "ಕ್ಯಾಲೆಂಡರ್", "Memory": "ನೆನಪು", "Reports": "ವರದಿಗಳು",
     "Schedules": "ಕರೆ ಸಮಯ", "Family circle": "ಕುಟುಂಬ", "History": "ಇತಿಹಾಸ", "Home": "ಮುಖಪುಟ", "My family": "ನನ್ನ ಕುಟುಂಬ",
     "My calls": "ನನ್ನ ಮಾತುಕತೆ", "Patients": "ರೋಗಿಗಳು", "Review queue": "ಪರಿಶೀಲನೆಗೆ", "Behind the call": "ಕರೆಯ ಖರ್ಚು",
-    "Family": "ಕುಟುಂಬ", "For Appa": "ಹಿರಿಯರಿಗೆ", "Care team": "ಆರೈಕೆ ತಂಡ", "Log out": "ಲಾಗ್ ಔಟ್",
+    "Family": "ಕುಟುಂಬ", "For elders": "ಹಿರಿಯರಿಗೆ", "Care team": "ಆರೈಕೆ ತಂಡ", "Log out": "ಲಾಗ್ ಔಟ್",
     "Smriti ID": "ಸ್ಮೃತಿ ID", "Demo apps": "ಡೆಮೊ ಆ್ಯಪ್", "Screen language": "ಪರದೆಯ ಭಾಷೆ",
     "Every week, someone remembers": "ಪ್ರತಿ ವಾರ, ಯಾರೋ ನೆನಪಿಟ್ಟುಕೊಳ್ಳುತ್ತಾರೆ",
     "Log in as the family": "ಕುಟುಂಬದವರಾಗಿ ಲಾಗ್ ಇನ್ ಮಾಡಿ", "Log in as the elder": "ಹಿರಿಯರಾಗಿ ಲಾಗ್ ಇನ್ ಮಾಡಿ",

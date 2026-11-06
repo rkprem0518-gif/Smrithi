@@ -11,7 +11,8 @@ const SHARE = {
 
 /* ---------------------------------------------------------------- boot, login, logout */
 async function boot() {
-  const res = await fetch("/api/auth/me", { credentials: "same-origin" });
+  document.body.classList.remove("setup");
+  const res = await fetch("api/auth/me", { credentials: "same-origin" });
   const me = await res.json();
   state.me = me;
   if (!me.user) { showLogin(); return; }
@@ -32,33 +33,291 @@ async function boot() {
 function showLogin() {
   const me = state.me || { demo_users: [], app: "family" };
   document.body.classList.remove("elder-app");
+  document.body.classList.add("setup");
   $("#nav").innerHTML = ""; $("#tabbar").innerHTML = ""; $("#sideFoot").innerHTML = "";
   if (!store.get("ui")) setUiLang("en"); else setUiLang(store.get("ui"));
-  const who = { family: "Log in as the family", elder: "Log in as the elder", clinic: "Log in as the care team" }[me.app] || "Log in as the family";
+  clearInterval(state.loginPoll);
+  const users = me.demo_users || [];
+  if (me.app === "family" && !users.length) { welcome(1); return; }
   const ports = me.ports || {};
-  $("#view").innerHTML = `<div class="login">
-    <div class="card" style="max-width:560px;margin:8vh auto 0;padding:36px">
-      <div class="row" style="gap:14px"><svg width="46" height="46" viewBox="0 0 40 40" aria-hidden="true"><circle cx="20" cy="20" r="18" fill="#0E5E63"/><path d="M9 24c5-9 17-9 22 0" stroke="#E3A72F" stroke-width="3" fill="none" stroke-linecap="round"/><circle cx="20" cy="15" r="3" fill="#fff"/></svg>
-        <div><h1 style="font-size:30px">Smriti</h1><div class="muted">${tr("Every week, someone remembers")}</div></div></div>
+  const title = { family: "Who's using Smriti?", elder: "Who are you?", clinic: "Care team login" }[me.app] || "Who's using Smriti?";
+  const list = users.map((u) => `<button class="case" data-id="${u.id}" style="grid-template-columns:44px 1fr;align-items:center">
+    <div class="avatar sm">${esc(u.name[0])}</div><div><b>${esc(u.name)}</b><div class="small muted">${esc(u.role_label)}${u.org ? " · " + esc(u.org) : ""}${u.age ? " · " + u.age + " years" : ""} · ${esc(u.smriti_id)}</div></div></button>`).join("");
+  let body;
+  if (me.app === "elder") {
+    body = users.length
+      ? `<p class="muted" style="margin-top:6px">${tr("Tap your name.")}</p><div class="stack" style="margin-top:18px">${list}</div>`
+      : `<div class="empty-state"><div class="big">👵🏽</div><h3>${tr("No one here yet")}</h3>
+          <p class="muted">${tr("A son, daughter or grandchild adds their parent in the family app. Their name then appears here, ready to tap.")}</p>
+          <a class="btn" style="margin-top:16px" href="${ports.family || "#"}">${tr("Open the family app")}</a>
+          <p class="small muted" style="margin-top:12px">${tr("This page updates by itself.")}</p></div>`;
+  } else if (me.app === "clinic") {
+    body = `${users.length ? `<p class="muted" style="margin-top:6px">Pick your account. No password in the demo.</p><div class="stack" style="margin-top:18px">${list}</div>
+        <button class="btn quiet" id="newAcct" style="margin-top:6px;width:100%">+ Create a care-team account</button>` : `<p class="muted" style="margin-top:6px">Smriti's care team reads every flagged call and decides when to call the family. Create your account to start.</p>${careSignup()}`}`;
+  } else {
+    body = `<p class="muted" style="margin-top:6px">Pick your account. No password in the demo.</p><div class="stack" style="margin-top:18px">${list}</div>
+      <button class="btn quiet" id="newAcct" style="margin-top:6px;width:100%">+ I'm new: set up my family</button>`;
+  }
+  $("#view").innerHTML = `<div class="login"><div class="card" style="max-width:560px;margin:8vh auto 0;padding:36px">
+      ${logoBlock()}
       <div style="margin-top:20px">${uiLangSwitch()}</div>
-      <h2 style="margin-top:22px">${tr(who)}</h2>
-      <p class="muted" style="margin-top:6px">${tr("Demo login: pick a person. No password in the demo.")}</p>
-      <div class="stack" style="margin-top:18px">${(me.demo_users || []).map((u) => `<button class="case" data-id="${u.id}" style="grid-template-columns:44px 1fr;align-items:center">
-        <div class="avatar sm">${esc(u.name[0])}</div><div><b>${esc(u.name)}</b><div class="small muted">${esc(u.role_label)}${u.org ? " · " + esc(u.org) : ""}${u.age ? " · " + u.age + " years" : ""} · ${esc(u.smriti_id)}</div></div></button>`).join("") || `<p class="empty">No demo users yet.</p>`}</div>
-      <p class="small muted" style="margin-top:18px">${tr("Other apps")}: <a href="${ports.family || "#"}">Family</a> · <a href="${ports.elder || "#"}">Elder</a> · <a href="${ports.clinic || "#"}">Care team</a></p>
+      <h2 style="margin-top:22px">${tr(title)}</h2>
+      ${body}
+      <p class="small muted" style="margin-top:22px">${tr("Other apps")}: <a href="${ports.family || "#"}">Family</a> · <a href="${ports.elder || "#"}">Elder</a> · <a href="${ports.clinic || "#"}">Care team</a></p>
     </div></div>`;
   $("#view").querySelectorAll(".case").forEach((b) => (b.onclick = async () => {
-    await fetch("/api/auth/demo-login", { method: "POST", credentials: "same-origin", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ user_id: b.dataset.id }) });
+    await fetch("api/auth/demo-login", { method: "POST", credentials: "same-origin", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ user_id: b.dataset.id }) });
     location.hash = "";
     boot();
   }));
+  const na = $("#newAcct");
+  if (na) na.onclick = () => (me.app === "clinic" ? (na.outerHTML = careSignup(), wireCareSignup()) : welcome(2));
+  wireCareSignup();
+  if (!users.length) {
+    // Nobody to log in as yet: check every few seconds, so a parent added in the family app shows up here.
+    state.loginPoll = setInterval(async () => {
+      const fresh = await fetch("api/auth/me", { credentials: "same-origin" }).then((r) => r.json()).catch(() => null);
+      if (fresh && !fresh.user && (fresh.demo_users || []).length) { state.me = fresh; showLogin(); }
+    }, 4000);
+  }
 }
 
+function logoBlock() {
+  return `<div class="row" style="gap:14px"><svg width="46" height="46" viewBox="0 0 40 40" aria-hidden="true"><circle cx="20" cy="20" r="18" fill="#0E5E63"/><path d="M9 24c5-9 17-9 22 0" stroke="#E3A72F" stroke-width="3" fill="none" stroke-linecap="round"/><circle cx="20" cy="15" r="3" fill="#fff"/></svg>
+    <div><h1 style="font-size:30px">Smriti</h1><div class="muted">${tr("Every week, someone remembers")}</div></div></div>`;
+}
+
+function careSignup() {
+  return `<div id="careForm" style="margin-top:8px"><label class="field"><span>Your name</span><input id="cName" placeholder="e.g. Dr. Meera Iyer" autocomplete="name"></label>
+    <label class="field"><span>Clinic or organisation</span><input id="cOrg" placeholder="e.g. Jayanagar Memory Clinic"></label>
+    <div class="err" id="cErr" hidden></div>
+    <button class="btn" id="cGo" style="margin-top:16px;width:100%">Create my account</button></div>`;
+}
+
+function wireCareSignup() {
+  const go = $("#cGo");
+  if (!go) return;
+  go.onclick = async () => {
+    try {
+      await api("api/auth/signup", { method: "POST", body: { name: $("#cName").value.trim(), org: $("#cOrg").value.trim() } });
+      location.hash = ""; boot();
+    } catch (err) { $("#cErr").textContent = friendly(err); $("#cErr").hidden = false; }
+  };
+}
+
+function friendly(err) {
+  const m = err.message || "";
+  return /String should have at least|value_error|422/.test(m) ? "Please fill in the name (at least 2 letters)." : m;
+}
+
+/* ---------------------------------------------------------------- welcome: guided setup for a new family */
+const SHARE_FAMILY = {
+  okay_only: ["Only that they're okay", "You hear that they're doing well. Nothing more."],
+  health: ["Health worries too", "You hear about their health worries, in their own words."],
+  all: ["Everything they talk about", "You hear how they are and what they talked about."],
+};
+const WIZ = ["Welcome", "You", "Your parent", "Calls", "Done"];
+const wiz = {};
+
+function wizShell(step, inner) {
+  document.body.classList.remove("elder-app");
+  document.body.classList.add("setup");
+  $("#nav").innerHTML = ""; $("#tabbar").innerHTML = ""; $("#sideFoot").innerHTML = "";
+  $("#view").innerHTML = `<div class="wiz"><div class="card wiz-card">
+      <div class="spread">${logoBlock()}<div>${uiLangSwitch()}</div></div>
+      <ol class="wiz-steps" aria-label="Setup steps">${WIZ.map((s, i) => `<li class="${i + 1 < step ? "done" : i + 1 === step ? "now" : ""}"><i></i>${tr(s)}</li>`).join("")}</ol>
+      ${inner}
+      ${state.me && state.me.user ? `<p class="small muted wiz-foot">Logged in as <b>${esc(state.me.user.name)}</b> · <button type="button" class="linkish" id="wizLogout">Log out</button> · <button type="button" class="linkish" id="startOver">Start over</button></p>` : ""}</div></div>`;
+  window.scrollTo(0, 0);
+  const lo = $("#wizLogout");
+  if (lo) lo.onclick = () => { Object.keys(wiz).forEach((k) => delete wiz[k]); logout(); };
+}
+
+function welcome(step) {
+  clearInterval(state.loginPoll);
+  ({ 1: wizWelcome, 2: wizYou, 3: wizParent, 4: wizCalls, 5: wizDone }[step] || wizWelcome)();
+}
+
+function wizWelcome() {
+  const ports = (state.me && state.me.ports) || {};
+  wizShell(1, `<h2 class="wiz-title">${tr("Your parents, looked after every week.")}</h2>
+    <p class="muted wiz-lead">${tr("Smriti phones your mother or father every week, in their own language, for a friendly chat. You hear what matters, and a real person checks every worry.")}</p>
+    <div class="wiz-points">
+      <div><b>${ic("phone")} ${tr("A warm weekly call")}</b><span>${tr("In Kannada, Hindi, Tamil and 8 more languages. They can interrupt, change language or say not today.")}</span></div>
+      <div><b>${ic("thread")} ${tr("You hear what matters")}</b><span>${tr("A timeline of how they've been, in their own words: sleep, pain, mood, memory.")}</span></div>
+      <div><b>${ic("care")} ${tr("A person checks every worry")}</b><span>${tr("Fixed rules flag a concern; the care team decides; Smriti calls you and helps book a doctor.")}</span></div>
+      <div><b>${ic("brain")} ${tr("A memory check every few weeks")}</b><span>${tr("A short check on the phone, scored by fixed rules. Never a diagnosis.")}</span></div>
+    </div>
+    <p class="small muted">${tr("Setup takes about two minutes. Calls are simulated (free) until you connect Bolna.")}</p>
+    <div class="actions" style="justify-content:space-between;flex-wrap:wrap"><button class="btn quiet" id="sample">${tr("Explore a sample family instead")}</button><button class="btn" id="next">${tr("Set up my family")} →</button></div>
+    <p class="small muted" style="margin-top:14px">${tr("Other apps")}: <a href="${ports.elder || "#"}">Elder</a> · <a href="${ports.clinic || "#"}">Care team</a></p>`);
+  $("#next").onclick = () => welcome(2);
+  $("#sample").onclick = async () => {
+    $("#sample").disabled = true; $("#sample").textContent = "Adding the sample family…";
+    await api("api/auth/sample-family", { method: "POST" });
+    state.me = await fetch("api/auth/me", { credentials: "same-origin" }).then((r) => r.json());
+    toast("Sample family added: log in as Ravi or Priya.");
+    showLogin();
+  };
+}
+
+function wizYou() {
+  wizShell(2, `<h2 class="wiz-title">${tr("First, about you")}</h2>
+    <p class="muted wiz-lead">${tr("Smriti says your name on calls (\"Is there anything you'd like me to tell Ravi?\").")}</p>
+    <label class="field"><span>${tr("Your name")}</span><input id="yName" placeholder="e.g. Ravi Rao" autocomplete="name" value="${esc(wiz.name || "")}"></label>
+    <label class="field"><span>${tr("You are their")}</span><select id="yRel">${["son", "daughter", "grandson", "granddaughter", "daughter-in-law", "son-in-law", "relative", "friend"].map((r) => `<option ${r === wiz.relation ? "selected" : ""}>${r}</option>`).join("")}</select></label>
+    <div class="err" id="err" hidden></div>
+    <div class="actions" style="justify-content:space-between"><button class="btn quiet" id="back">← ${tr("Back")}</button><button class="btn" id="next">${tr("Next")} →</button></div>`);
+  $("#yName").focus();
+  $("#back").onclick = () => (state.me && (state.me.demo_users || []).length ? showLogin() : welcome(1));
+  $("#next").onclick = async () => {
+    wiz.name = $("#yName").value.trim(); wiz.relation = $("#yRel").value;
+    if (wiz.name.length < 2) { $("#err").textContent = "Please type your name."; $("#err").hidden = false; return; }
+    try {
+      await api("api/auth/signup", { method: "POST", body: { name: wiz.name, relation: wiz.relation } });
+      state.me = await fetch("api/auth/me", { credentials: "same-origin" }).then((r) => r.json());
+      welcome(3);
+    } catch (err) { $("#err").textContent = friendly(err); $("#err").hidden = false; }
+  };
+}
+
+function wizParent() {
+  const rel = (state.me && state.me.user && state.me.user.title) || wiz.relation || "son";
+  wizShell(3, `<h2 class="wiz-title">${tr("Who should Smriti call?")}</h2>
+    <p class="muted wiz-lead">${tr("Add your mother, father or grandparent. They get their own simple page in the elder app.")}</p>
+    <label class="field"><span>${tr("Their full name")}</span><input id="fn" placeholder="e.g. Kamala Sharma"></label>
+    <div class="grid g2" style="gap:12px"><label class="field"><span>${tr("What you call them")}</span><input id="cn" placeholder="Amma, Papa, Ajji…"></label>
+      <label class="field"><span>${tr("Age")}</span><input id="age" type="number" min="40" max="120" placeholder="72"></label></div>
+    <label class="field"><span>${tr("City or village")}</span><input id="city" placeholder="Mysuru"></label>
+    <div class="field"><span>${tr("Language Smriti speaks with them")}</span><div class="lang-grid" id="langs">${Object.keys(NATIVE).map((k) => `<button type="button" class="chip ${k === "kn" ? "peacock" : ""}" data-l="${k}">${NATIVE[k]}${NATIVE[k] !== LANG[k] ? ` <span class="small">${LANG[k]}</span>` : ""}</button>`).join("")}</div></div>
+    <div class="field"><span>${tr("What can the family see? (they can change this on their own page)")}</span><div class="share-pick">${Object.entries(SHARE_FAMILY).map(([k, v]) => `<label class="choice"><input type="radio" name="share" value="${k}" ${k === "health" ? "checked" : ""}><b>${tr(v[0])}</b><small>${tr(v[1])}</small></label>`).join("")}</div></div>
+    <label class="field"><span>${tr("Their phone number (optional, kept only in this browser)")}</span><input id="ph" inputmode="tel" placeholder="+91 98765 43210"></label>
+    <div class="err" id="err" hidden></div>
+    <div class="actions" style="justify-content:space-between;flex-wrap:wrap"><button class="btn quiet" id="join">${tr("Joining a family already on Smriti?")}</button><button class="btn" id="next">${tr("Add them")} →</button></div>`);
+  let lang = "kn";
+  $("#langs").querySelectorAll("[data-l]").forEach((b) => (b.onclick = () => { lang = b.dataset.l; $("#langs").querySelectorAll("[data-l]").forEach((x) => x.classList.toggle("peacock", x === b)); }));
+  $("#fn").focus();
+  $("#join").onclick = () => { wiz.joining = true; location.hash = "#/today"; boot(); };
+  $("#next").onclick = async () => {
+    const age = parseInt($("#age").value, 10);
+    if ($("#fn").value.trim().length < 2) { $("#err").textContent = "Please type their name."; $("#err").hidden = false; return; }
+    try {
+      const p = await api("api/people/parents", { method: "POST", body: {
+        full_name: $("#fn").value.trim(), call_name: $("#cn").value.trim(), age: Number.isFinite(age) ? age : null,
+        city: $("#city").value.trim(), language: lang, relation: rel, share_level: (document.querySelector("input[name=share]:checked") || {}).value || "health" } });
+      const phone = $("#ph").value.replace(/[\s-]/g, "");
+      if (phone) store.set("parentPhone." + p.id, phone);
+      wiz.parent = p;
+      state.parentId = p.id; state.parent = p;
+      store.set(`parent.${state.me.user.id}`, p.id);
+      welcome(4);
+    } catch (err) { $("#err").textContent = friendly(err); $("#err").hidden = false; }
+  };
+}
+
+function wizCalls() {
+  const p = wiz.parent || {};
+  wizShell(4, `<h2 class="wiz-title">${tr("When should Smriti call {name}?", { name: esc(p.call_name || "them") })}</h2>
+    <p class="muted wiz-lead">${tr("Pick the days and a time they're usually free. Nothing dials by itself in this demo: you press Run now, or Call now.")}</p>
+    <div class="field"><span>${tr("Days")}</span><div class="row" style="gap:6px;flex-wrap:wrap" id="days">${WEEKDAYS.map((d, i) => `<button type="button" class="chip ${i === 6 ? "peacock" : ""}" data-d="${i}">${tr(d)}</button>`).join("")}</div></div>
+    <label class="field"><span>${tr("Time")}</span><input id="time" type="time" value="10:30"></label>
+    <label class="field"><span>${tr("Anything you'd like Smriti to ask? (optional, one per line)")}</span><textarea id="qs" rows="3" placeholder="Did you take your BP tablet?&#10;How was the temple visit?"></textarea></label>
+    <div class="err" id="err" hidden></div>
+    <div class="actions" style="justify-content:space-between"><button class="btn quiet" id="skip">${tr("Skip for now")}</button><button class="btn" id="next">${tr("Save")} →</button></div>`);
+  const days = new Set([6]);
+  $("#days").querySelectorAll("[data-d]").forEach((b) => (b.onclick = () => { const d = +b.dataset.d; days.has(d) ? days.delete(d) : days.add(d); b.classList.toggle("peacock", days.has(d)); }));
+  $("#skip").onclick = () => { wiz.schedule = null; welcome(5); };
+  $("#next").onclick = async () => {
+    try {
+      const qs = $("#qs").value.split("\n").map((x) => x.trim()).filter(Boolean).slice(0, 5);
+      await api("api/family/schedules", { method: "POST", body: { label: "Weekly chat", time: $("#time").value || "10:30", days: [...days].sort(), questions: qs, parent_id: p.id } });
+      wiz.schedule = { days: [...days].sort(), time: $("#time").value || "10:30" };
+      welcome(5);
+    } catch (err) { $("#err").textContent = friendly(err); $("#err").hidden = false; }
+  };
+}
+
+function wizDone() {
+  const p = wiz.parent || {};
+  const s = wiz.schedule;
+  const ports = (state.me && state.me.ports) || {};
+  wizShell(5, `<h2 class="wiz-title">${tr("You're all set")} 🎉</h2>
+    <ul class="wiz-done">
+      <li>✓ ${tr("Your account")}: <b>${esc((state.me.user || {}).name || "")}</b> · ${tr("Smriti ID")} ${esc((state.me.user || {}).smriti_id || "")}</li>
+      <li>✓ <b>${esc(p.call_name || "")}</b> (${esc(p.full_name || "")}) · ${tr("Smriti speaks {lang}", { lang: esc(LANG[p.language] || p.language || "") })}</li>
+      <li>${s ? `✓ ${tr("Calls")}: ${s.days.length ? s.days.map((d) => tr(WEEKDAYS[d])).join(", ") : tr("every day")} ${tr("at")} ${esc(s.time)}` : `○ ${tr("No call times yet (add them under Schedules)")}`}</li>
+    </ul>
+    <h3 style="margin-top:22px">${tr("What next?")}</h3>
+    <div class="wiz-next">
+      <button class="wiz-tile" id="tryCall"><b>${ic("phone")} ${tr("Try a call now")}</b><span>${tr("A simulated call (free). Watch it live, then see it on the timeline.")}</span></button>
+      <button class="wiz-tile" data-bolna><b>${ic("phone")} ${tr("Make calls real")}</b><span>${tr("Connect your Bolna API key. Until then, calls are simulated.")}</span></button>
+      <a class="wiz-tile" href="${ports.elder || "#"}" target="_blank" rel="noopener"><b>${ic("user")} ${tr("See {name}'s page", { name: esc(p.call_name || "their") })}</b><span>${tr("The elder app: big text, their language, their choices.")}</span></a>
+      <a class="wiz-tile" href="${ports.clinic || "#"}" target="_blank" rel="noopener"><b>${ic("care")} ${tr("Open the care team app")}</b><span>${tr("Where a person reviews every worry before you hear about it.")}</span></a>
+    </div>
+    <p class="notice-box" style="margin-top:16px">${BOLNA_NOTE}</p>
+    <div class="actions"><button class="btn" id="go">${tr("Go to my dashboard")} →</button></div>`);
+  const finish = async (thenCall) => { history.replaceState(null, "", "#/today"); await boot(); if (thenCall) callDialog("checkin"); };
+  $("#go").onclick = () => finish(false);
+  $("#tryCall").onclick = () => finish(true);
+}
+
+/* ---------------------------------------------------------------- remove one profile, or start over */
+function myRole() {
+  const mine = ((state.me && state.me.parents) || []).find((x) => x.id === state.parentId);
+  return mine ? mine.my_role : "";
+}
+
+function removeProfileDialog() {
+  const p = state.parent;
+  if (!p) return;
+  const el = modal(`<h2>Remove ${esc(p.call_name)}'s profile?</h2>
+    <p class="muted">This deletes ${esc(p.full_name)} from Smriti: every call, flag, note, visit and schedule, their family circle and their login in the elder app. It can't be undone.</p>
+    <div class="actions"><button class="btn quiet" id="cancel">Keep</button><button class="btn danger" id="go">Remove ${esc(p.call_name)}</button></div>`);
+  $("#cancel", el).onclick = closeModal;
+  $("#go", el).onclick = async () => {
+    try {
+      await api(`api/people/parents/${encodeURIComponent(p.id)}`, { method: "DELETE" });
+      closeModal();
+      toast(`${p.call_name}'s profile was removed.`);
+      await afterProfilesChanged();
+    } catch (err) { toast(err.message); }
+  };
+}
+
+function startOverDialog() {
+  const el = modal(`<h2>Start over?</h2>
+    <p class="muted">Deletes <b>every</b> profile and account on this Smriti: all parents, family members, care-team accounts, calls and history. Everyone is logged out and Smriti opens at the welcome screen. Your Bolna connection stays.</p>
+    <div class="actions"><button class="btn quiet" id="cancel">Cancel</button><button class="btn danger" id="go">Delete everything</button></div>`);
+  $("#cancel", el).onclick = closeModal;
+  $("#go", el).onclick = async () => {
+    try {
+      await api("api/people/start-over", { method: "POST" });
+      closeModal();
+      Object.keys(wiz).forEach((k) => delete wiz[k]);
+      await afterProfilesChanged();
+    } catch (err) { toast(err.message); }
+  };
+}
+
+async function afterProfilesChanged() {
+  const me = await fetch("api/auth/me", { credentials: "same-origin" }).then((r) => r.json());
+  state.me = me;
+  if (!me.user) { if (state.sync) state.sync.close(); state.parent = null; state.parentId = null; location.hash = ""; showLogin(); return; }
+  location.hash = "#/today";
+  boot();
+}
+
+document.addEventListener("click", (e) => {
+  if (!e.target.closest) return;
+  if (e.target.closest("#removeProfile")) removeProfileDialog();
+  if (e.target.closest("#startOver")) startOverDialog();
+});
+
 async function logout() {
-  await fetch("/api/auth/logout", { method: "POST", credentials: "same-origin" });
+  await fetch("api/auth/logout", { method: "POST", credentials: "same-origin" });
   if (state.sync) state.sync.close();
   state.me = null; state.parent = null; state.parentId = null;
-  const me = await fetch("/api/auth/me", { credentials: "same-origin" }).then((r) => r.json());
+  const me = await fetch("api/auth/me", { credentials: "same-origin" }).then((r) => r.json());
   state.me = me;
   showLogin();
 }
@@ -77,7 +336,7 @@ function parentSwitcher() {
   const parents = (state.me && state.me.parents) || [];
   return `<div class="parent-switch"><label class="small muted" for="parentSel">Looking after</label>
     <select id="parentSel">${parents.map((x) => `<option value="${x.id}" ${x.id === state.parentId ? "selected" : ""}>${esc(x.call_name)} · ${esc(x.full_name)}</option>`).join("")}</select>
-    <div class="row" style="margin-top:8px;gap:6px"><button type="button" class="btn sm" id="addParent">+ Add a parent</button><button type="button" class="btn quiet sm" id="resetDemo" title="Remove parents added in the app; keeps the sample family">Reset</button></div></div>`;
+    <div class="row" style="margin-top:8px;gap:6px"><button type="button" class="btn sm" id="addParent">+ Add a parent</button><button type="button" class="btn quiet sm" id="startOver" title="Delete every profile and account, back to the welcome screen">Start over</button></div></div>`;
 }
 
 document.addEventListener("change", (e) => {
@@ -92,20 +351,6 @@ document.addEventListener("change", (e) => {
 
 document.addEventListener("click", async (e) => {
   if (e.target.closest && e.target.closest("#addParent")) addParentDialog();
-  if (e.target.closest && e.target.closest("#resetDemo")) {
-    const el = modal(`<h2>Reset demo profiles?</h2><p class="muted">Removes every parent added in the app, with their calls and history. The sample family (Appa) stays.</p>
-      <div class="actions"><button class="btn quiet" id="cancel">Cancel</button><button class="btn" id="go">Reset</button></div>`);
-    $("#cancel", el).onclick = closeModal;
-    $("#go", el).onclick = async () => {
-      const r = await api("/api/people/reset-demo", { method: "POST" });
-      closeModal();
-      await refreshMe();
-      state.parentId = ((state.me.parents || [])[0] || {}).id || null;
-      state.parent = (state.me.parents || [])[0] || null;
-      toast(`Removed ${r.removed} added profile${r.removed === 1 ? "" : "s"}.`);
-      location.hash = "#/today"; route();
-    };
-  }
 });
 
 function addParentDialog() {
@@ -124,7 +369,7 @@ function addParentDialog() {
   $("#go", el).onclick = async () => {
     try {
       const age = parseInt($("#age", el).value, 10);
-      const p = await api("/api/people/parents", { method: "POST", body: {
+      const p = await api("api/people/parents", { method: "POST", body: {
         full_name: $("#fn", el).value.trim(), call_name: $("#cn", el).value.trim(), age: Number.isFinite(age) ? age : null,
         city: $("#city", el).value.trim(), language: $("#lang", el).value, relation: $("#rel", el).value, share_level: $("#share", el).value } });
       const phone = $("#ph", el).value.replace(/[\s-]/g, "");
@@ -141,7 +386,7 @@ function addParentDialog() {
 
 /* ---------------------------------------------------------------- real calls or simulated (Bolna credits) */
 async function loadCallMode() {
-  try { state.callMode = await api("/api/auth/call-mode"); } catch { state.callMode = { live: false, available: false }; }
+  try { state.callMode = await api("api/auth/call-mode"); } catch { state.callMode = { live: false, available: false }; }
 }
 
 function currentRoute() {
@@ -155,14 +400,88 @@ function callModeSwitch() {
   return `<div class="credits ${m.live ? "on" : ""}" style="margin-top:12px">
     <div class="spread"><b>${m.live ? "Real calls" : "Simulated calls"}</b>
       <button type="button" class="switch ${m.live ? "on" : ""}" id="creditsToggle" role="switch" aria-checked="${m.live}" aria-label="Use Bolna credits" ${m.available ? "" : "disabled"}><i></i></button></div>
-    <div class="small">${m.live ? `Using Bolna credits${m.wallet !== null && m.wallet !== undefined ? " · " + usd(m.wallet) + " left" : ""}` : m.available ? "No credits used. Switch on to place real calls." : "This server is offline-only (DEMO_MODE=1)."}</div></div>`;
+    <div class="small">${m.live ? `Using Bolna credits${m.wallet !== null && m.wallet !== undefined ? " · " + usd(m.wallet) + " left" : ""}` : m.available ? "No credits used. Switch on to place real calls." : bolnaHint(m)}</div>
+    ${bolnaLink(m)}
+    <p class="bolna-note">${BOLNA_NOTE}</p></div>`;
 }
+
+const BOLNA_NOTE = "Real calls only work after you connect your own Bolna API key. Bolna trial accounts can call only numbers verified in your Bolna dashboard (Profile → Verified numbers).";
+
+/* ---------------------------------------------------------------- connect a Bolna account (API key) */
+function bolnaHint(m) {
+  const b = m.bolna || {};
+  if (b.can_connect) return m.can_manage ? "Calls are simulated. Connect your Bolna account to place real calls." : "Calls are simulated. The family can connect Bolna for real calls.";
+  return "This server is offline-only (started with --offline).";
+}
+
+function bolnaLink(m) {
+  const b = m.bolna || {};
+  if (!m.can_manage) return "";
+  const style = 'style="margin-top:10px;width:100%"';
+  if (b.source === "app") return `<button type="button" class="btn quiet sm" data-bolna ${style}>✓ Bolna connected ${esc(b.key_hint || "")} · Manage</button>`;
+  if (b.source === "env") return `<button type="button" class="btn sm" data-bolna ${style}>${ic("phone")} Connect Bolna API key</button><div class="small" style="margin-top:6px">Now using the key from .env ${esc(b.key_hint || "")}</div>`;
+  if (b.can_connect) return `<button type="button" class="btn sm" data-bolna ${style}>${ic("phone")} Connect Bolna API key</button>`;
+  return "";
+}
+
+function bolnaDialog() {
+  const m = state.callMode || {};
+  const b = m.bolna || {};
+  if (b.source === "app") {
+    const agents = Object.entries(b.agents || {}).map(([k, v]) => `${{ checkin: "Weekly check-in", family: "Call to the family", memory: "Memory check" }[k] || k}: ${v ? "ready" : "missing"}`).join(" · ");
+    const el = modal(`<h2>Your Bolna account</h2>
+      <p class="muted">Key ${esc(b.key_hint || "")} · ${esc(agents)}${b.from_number ? " · calls from " + esc(b.from_number) : ""}</p>
+      <p class="small muted" style="margin-top:10px">Real calls are ${m.live ? "<b>on</b>" : "off"}. Disconnecting deletes the key from this server${b.env_key ? " and goes back to the key in .env" : " and makes every call simulated again"}. The agents stay on your Bolna account.</p>
+      <p class="notice-box" style="margin-top:12px">${BOLNA_NOTE}</p>
+      <div class="actions"><button class="btn quiet" id="cancel">Close</button><button class="btn danger" id="go">Disconnect</button></div>`);
+    $("#cancel", el).onclick = closeModal;
+    $("#go", el).onclick = async () => {
+      try { await api("api/auth/bolna", { method: "DELETE" }); closeModal(); await loadCallMode(); renderNav(currentRoute()); toast("Bolna disconnected. Calls are simulated."); }
+      catch (err) { toast(err.message); }
+    };
+    return;
+  }
+  const el = modal(`<h2>Connect your Bolna account</h2>
+    <p class="notice-box">${BOLNA_NOTE}</p>
+    ${b.source === "env" ? `<p class="small muted" style="margin-top:10px">Right now this server uses the key in <code>.env</code> (${esc(b.key_hint || "")}). A key you paste here takes priority until you disconnect it.</p>` : ""}
+    <p class="muted" style="margin-top:12px">Paste your Bolna API key (Bolna dashboard → Developers → API keys). Smriti then sets up its three voice agents on your account: the weekly check-in, the call to the family and the memory check.</p>
+    <label class="field" style="margin-top:14px"><span>Bolna API key</span><input id="bk" type="password" autocomplete="off" spellcheck="false" placeholder="bn-…"></label>
+    <details style="margin-top:12px"><summary class="small">I already have Smriti agents on Bolna (optional)</summary>
+      <div class="stack" style="margin-top:10px">
+        <label class="field"><span>Check-in agent ID</span><input id="bc" autocomplete="off" spellcheck="false"></label>
+        <label class="field"><span>Family-call agent ID</span><input id="bf" autocomplete="off" spellcheck="false"></label>
+        <label class="field"><span>Memory-check agent ID</span><input id="bm" autocomplete="off" spellcheck="false"></label>
+        <label class="field"><span>Call from this number (optional)</span><input id="bn" autocomplete="off" placeholder="+91…"></label>
+        <p class="small muted">Leave an agent empty and Smriti creates it.</p></div></details>
+    <ul class="small muted" style="margin:14px 0 0 18px;line-height:1.5">
+      <li>Connecting places no call and uses no credits. Calls stay simulated until you switch on <b>Real calls</b>.</li>
+      <li>The key stays on this server and is never shown in the browser again.${location.hostname === "localhost" || location.hostname === "127.0.0.1" ? "" : " On a shared server anyone using it could place calls with your key, so disconnect when you're done."}</li>
+      <li>No Bolna account yet? Sign up at bolna.ai, then copy the key from Developers → API keys.</li></ul>
+    <div class="actions"><button class="btn quiet" id="cancel">Cancel</button><button class="btn" id="go">Connect</button></div>`);
+  $("#cancel", el).onclick = closeModal;
+  $("#bk", el).focus();
+  $("#go", el).onclick = async () => {
+    const key = $("#bk", el).value.trim();
+    if (!key) { toast("Paste your Bolna API key first."); return; }
+    const go = $("#go", el);
+    go.disabled = true; go.textContent = "Connecting…";
+    try {
+      const r = await api("api/auth/bolna", { method: "POST", body: { api_key: key, checkin_agent_id: $("#bc", el).value, family_agent_id: $("#bf", el).value, memory_agent_id: $("#bm", el).value, from_number: $("#bn", el).value } });
+      closeModal(); await loadCallMode(); renderNav(currentRoute());
+      toast(`Bolna connected${r.created && r.created.length ? ` · ${r.created.length} agent${r.created.length > 1 ? "s" : ""} created` : ""}. Switch on Real calls to use it.`);
+    } catch (err) { go.disabled = false; go.textContent = "Connect"; toast(err.message); }
+  };
+}
+
+document.addEventListener("click", (e) => {
+  if (e.target.closest && e.target.closest("[data-bolna]")) bolnaDialog();
+});
 
 function callModeNote() {
   const m = state.callMode || {};
   return m.live
-    ? `<p class="mode-note live">Real call · uses Bolna credits (about $0.06 a minute).</p>`
-    : `<p class="mode-note">Simulated call · no credits used. Turn on “Real calls” in the sidebar for a real phone call.</p>`;
+    ? `<p class="mode-note live">Real call · uses Bolna credits (about $0.06 a minute). On a Bolna trial account, only numbers verified in your Bolna dashboard can be called.</p>`
+    : `<p class="mode-note">Simulated call · no credits used. For a real phone call, connect your Bolna API key and turn on “Real calls” (in the sidebar, or under More on small screens).</p>`;
 }
 
 document.addEventListener("click", async (e) => {
@@ -171,14 +490,15 @@ document.addEventListener("click", async (e) => {
   const m = state.callMode || {};
   if (!m.live) {
     const el = modal(`<h2>Use Bolna credits?</h2><p class="muted">Calls from all three apps will become real phone calls and use your Bolna balance${m.wallet !== null && m.wallet !== undefined ? " (" + usd(m.wallet) + " left)" : ""}. About $0.06 a minute.</p>
+      <p class="notice-box" style="margin-top:12px">On a Bolna trial account, only numbers verified in your Bolna dashboard can be called. Other numbers fail without ringing.</p>
       <div class="actions"><button class="btn quiet" id="cancel">Keep simulated</button><button class="btn" id="go">Turn on real calls</button></div>`);
     $("#cancel", el).onclick = closeModal;
     $("#go", el).onclick = async () => {
-      try { state.callMode = { ...m, ...(await api("/api/auth/call-mode", { method: "PUT", body: { live: true } })) }; closeModal(); await loadCallMode(); renderNav(currentRoute()); }
+      try { state.callMode = { ...m, ...(await api("api/auth/call-mode", { method: "PUT", body: { live: true } })) }; closeModal(); await loadCallMode(); renderNav(currentRoute()); }
       catch (err) { closeModal(); toast(err.message); }
     };
   } else {
-    state.callMode = { ...m, ...(await api("/api/auth/call-mode", { method: "PUT", body: { live: false } })) };
+    state.callMode = { ...m, ...(await api("api/auth/call-mode", { method: "PUT", body: { live: false } })) };
     renderNav(currentRoute());
   }
 });
@@ -188,10 +508,12 @@ function startLiveSync() {
   if (state.sync) state.sync.close();
   let timer = null;
   try {
-    state.sync = new EventSource("/api/auth/live");
+    state.sync = new EventSource("api/auth/live");
     state.sync.onmessage = (e) => {
       let ev;
       try { ev = JSON.parse(e.data); } catch { return; }
+      if (ev.type === "profiles") { afterProfilesChanged(); return; }
+      if (ev.type === "call_mode" && ev.connected !== undefined) { loadCallMode().then(() => renderNav(currentRoute())); toast(ev.connected ? `${ev.by} connected Bolna. Real calls can be switched on.` : `${ev.by} disconnected Bolna: calls are simulated.`); return; }
       if (ev.type === "call_mode") { state.callMode = { ...(state.callMode || {}), live: ev.live }; renderNav(currentRoute()); toast(ev.live ? "Real calls are ON: calls use Bolna credits." : "Real calls are OFF: calls are simulated."); return; }
       if (ev.type === "activity") toast(ev.text);
       if ($(".scrim")) return; // don't redraw under an open dialog
@@ -202,7 +524,7 @@ function startLiveSync() {
 }
 
 async function refreshMe() {
-  const me = await fetch("/api/auth/me", { credentials: "same-origin" }).then((r) => r.json());
+  const me = await fetch("api/auth/me", { credentials: "same-origin" }).then((r) => r.json());
   if (!me.user) return;
   state.me = me;
   state.parent = (me.parents || []).find((p) => p.id === state.parentId) || state.parent;
@@ -225,7 +547,7 @@ function memberRow(m, canDecide) {
 function wireDecisions(root) {
   root.querySelectorAll("[data-yes],[data-no]").forEach((b) => (b.onclick = async () => {
     const id = b.dataset.yes || b.dataset.no;
-    await api(`/api/people/members/${id}/decide`, { method: "POST", body: { accept: Boolean(b.dataset.yes) } });
+    await api(`api/people/members/${id}/decide`, { method: "POST", body: { accept: Boolean(b.dataset.yes) } });
     toast(tr(b.dataset.yes ? "Done. They're in your circle." : "Okay. They won't be added."));
     route();
   }));
@@ -237,7 +559,7 @@ function qr(el, text) {
 
 /* ---------------------------------------------------------------- family: schedules */
 VIEWS.schedules = async (main) => {
-  const r = await api("/api/family/schedules" + P());
+  const r = await api("api/family/schedules" + P());
   const p = state.parent || {};
   main.innerHTML = `<div class="page-head"><div><div class="eyebrow">Schedules</div><h1>When Smriti calls ${esc(p.call_name || "")}</h1>
     <p>Set a time and what to ask. Smriti asks it in ${esc(p.call_name || "their")}'s language, along with how they're feeling.</p></div>
@@ -253,7 +575,7 @@ VIEWS.schedules = async (main) => {
   main.querySelectorAll("[data-run]").forEach((b) => (b.onclick = () => runDialog(r.items.find((s) => s.id === b.dataset.run))));
   main.querySelectorAll("[data-toggle]").forEach((b) => (b.onclick = async () => {
     const s = r.items.find((x) => x.id === b.dataset.toggle);
-    await api(`/api/family/schedules/${s.id}`, { method: "PATCH", body: { ...s, active: !s.active } });
+    await api(`api/family/schedules/${s.id}`, { method: "PATCH", body: { ...s, active: !s.active } });
     route();
   }));
 };
@@ -271,7 +593,7 @@ function scheduleDialog() {
   $("#cancel", el).onclick = closeModal;
   $("#go", el).onclick = async () => {
     try {
-      await api("/api/family/schedules", { method: "POST", body: { label: $("#sl", el).value || "Check-in", time: $("#st", el).value || "20:00", days: [...days], questions: $("#sq", el).value.split("\n").map((x) => x.trim()).filter(Boolean).slice(0, 5), parent_id: state.parentId } });
+      await api("api/family/schedules", { method: "POST", body: { label: $("#sl", el).value || "Check-in", time: $("#st", el).value || "20:00", days: [...days], questions: $("#sq", el).value.split("\n").map((x) => x.trim()).filter(Boolean).slice(0, 5), parent_id: state.parentId } });
       closeModal(); route();
     } catch (e) { $("#err", el).textContent = e.message; $("#err", el).hidden = false; }
   };
@@ -290,7 +612,7 @@ function runDialog(s) {
     store.set("parentPhone." + state.parentId, phone);
     $("#go", el).disabled = true;
     try {
-      const r = await api(`/api/family/schedules/${s.id}/run`, { method: "POST", body: { phone: phone || null, language: $("#callLang", el) ? $("#callLang", el).value || null : null } });
+      const r = await api(`api/family/schedules/${s.id}/run`, { method: "POST", body: { phone: phone || null, language: $("#callLang", el) ? $("#callLang", el).value || null : null } });
       closeModal();
       showLive(r.session_id, r.checkin_id, `${s.label}: calling ${p.call_name}`, s.kind === "memory" ? "memory" : "checkin");
     } catch (e) { $("#err", el).textContent = e.message; $("#err", el).hidden = false; $("#go", el).disabled = false; }
@@ -299,7 +621,7 @@ function runDialog(s) {
 
 /* ---------------------------------------------------------------- family: circle and contacts */
 VIEWS.circle = async (main) => {
-  const r = await api("/api/people/me");
+  const r = await api("api/people/me");
   const me = r.me, c = r.circles.find((x) => x.parent_id === state.parentId) || r.circles[0];
   main.innerHTML = `<div class="page-head"><div><div class="eyebrow">Family circle</div><h1>${esc(c ? c.name : "Your circle")}</h1>
     <p>Everyone here sees the same timeline. ${esc((state.parent || {}).call_name || "The elder")} decides who joins and what is shared.</p></div></div>
@@ -318,7 +640,7 @@ VIEWS.circle = async (main) => {
   names.style.marginTop = "20px";
   names.innerHTML = `<div class="spread"><h3 style="margin:0">Names Smriti uses</h3><span class="small muted">Said out loud on every call</span></div>
     <div class="grid g2" style="gap:12px;margin-top:6px">
-      <label class="field"><span>Your name (as Smriti says it)</span><input id="nFamily" value="${esc(p.family_name || "")}" placeholder="e.g. Prem"></label>
+      <label class="field"><span>Your name (as Smriti says it)</span><input id="nFamily" value="${esc(p.family_name || "")}" placeholder="e.g. Arjun"></label>
       <label class="field"><span>You are their</span><input id="nRelation" value="${esc(p.relation || "")}" placeholder="son, daughter, grandchild"></label>
       <label class="field"><span>Their full name</span><input id="nFull" value="${esc(p.full_name || "")}"></label>
       <label class="field"><span>What you call them</span><input id="nCall" value="${esc(p.call_name || "")}" placeholder="Amma, Appa, Ajji"></label>
@@ -332,14 +654,23 @@ VIEWS.circle = async (main) => {
   $("#nSave").onclick = async () => {
     const val = (id) => $(id).value.trim();
     try {
-      await api("/api/family/settings", { method: "PATCH", body: { parent_id: state.parentId, family_name: val("#nFamily") || null,
+      await api("api/family/settings", { method: "PATCH", body: { parent_id: state.parentId, family_name: val("#nFamily") || null,
         relation: val("#nRelation") || null, full_name: val("#nFull") || null, call_name: val("#nCall") || null, honorific: val("#nHon") || null } });
-      if (val("#nMe") && val("#nMe") !== me.name) await api("/api/people/me", { method: "PATCH", body: { name: val("#nMe") } });
+      if (val("#nMe") && val("#nMe") !== me.name) await api("api/people/me", { method: "PATCH", body: { name: val("#nMe") } });
       await refreshMe();
       toast("Saved. Smriti will use these names on the next call.");
       route();
     } catch (e) { $("#nErr").textContent = e.message; $("#nErr").hidden = false; }
   };
+  if (state.app === "family" && state.parent && myRole() === "family") {
+    const danger = document.createElement("div");
+    danger.className = "card danger-zone";
+    danger.style.marginTop = "20px";
+    danger.innerHTML = `<h3 style="margin:0">Remove ${esc(state.parent.call_name)}'s profile</h3>
+      <p class="muted" style="margin-top:6px">Deletes ${esc(state.parent.full_name)} and everything about them from Smriti. To delete every profile at once, use <b>Start over</b> in the sidebar.</p>
+      <button class="btn danger" id="removeProfile" style="margin-top:12px">Remove ${esc(state.parent.call_name)}</button>`;
+    main.appendChild(danger);
+  }
   $("#invite").onclick = () => inviteDialog();
   $("#addc").onclick = () => contactDialog();
 };
@@ -351,7 +682,7 @@ function inviteDialog() {
     <div class="err" id="err" hidden></div><div class="actions"><button class="btn quiet" id="cancel">Cancel</button><button class="btn" id="go">Send request</button></div>`);
   $("#cancel", el).onclick = closeModal;
   $("#go", el).onclick = async () => {
-    try { await api("/api/people/invite", { method: "POST", body: { query: $("#q", el).value, role: $("#role", el).value, parent_id: state.parentId } }); closeModal(); toast("Request sent. Waiting for the elder."); route(); }
+    try { await api("api/people/invite", { method: "POST", body: { query: $("#q", el).value, role: $("#role", el).value, parent_id: state.parentId } }); closeModal(); toast("Request sent. Waiting for the elder."); route(); }
     catch (e) { $("#err", el).textContent = e.message; $("#err", el).hidden = false; }
   };
 }
@@ -362,7 +693,7 @@ function contactDialog() {
     <div class="err" id="err" hidden></div><div class="actions"><button class="btn quiet" id="cancel">Cancel</button><button class="btn" id="go">Add</button></div>`);
   $("#cancel", el).onclick = closeModal;
   $("#go", el).onclick = async () => {
-    try { const c = await api("/api/people/contacts", { method: "POST", body: { query: $("#q", el).value } }); closeModal(); toast(c.mutual ? `You and ${c.name} are connected.` : `Added ${c.name}. You're connected once they add you too.`); route(); }
+    try { const c = await api("api/people/contacts", { method: "POST", body: { query: $("#q", el).value } }); closeModal(); toast(c.mutual ? `You and ${c.name} are connected.` : `Added ${c.name}. You're connected once they add you too.`); route(); }
     catch (e) { $("#err", el).textContent = e.message; $("#err", el).hidden = false; }
   };
 }
@@ -372,19 +703,21 @@ VIEWS.waiting = (main) => {
   main.innerHTML = `<div class="card" style="max-width:640px;margin:6vh auto 0;padding:36px"><div class="eyebrow">Almost there</div>
     <h1>${tr("Waiting for your family's elder to say yes")}</h1>
     <p class="muted" style="margin-top:10px">You've been invited to a family circle. You'll see the timeline as soon as they agree, on their page or when Smriti asks them on a call. This page updates by itself.</p>
-    <div class="row" style="gap:20px;margin-top:22px"><div id="qr"></div><div><div class="small muted">Your Smriti ID</div><div class="result-word">${esc(u.smriti_id)}</div></div></div></div>`;
+    <div class="row" style="gap:20px;margin-top:22px"><div id="qr"></div><div><div class="small muted">Your Smriti ID</div><div class="result-word">${esc(u.smriti_id)}</div></div></div>
+    ${state.app === "family" ? `<button class="btn quiet" id="addInstead" style="margin-top:20px">Add a parent myself instead</button>` : ""}</div>`;
   qr($("#qr"), u.smriti_id);
+  if ($("#addInstead")) $("#addInstead").onclick = () => { clearInterval(state.waitPoll); wiz.joining = false; welcome(3); };
   // Not in any circle yet, so the live stream has nothing for us: check every few seconds instead.
   clearInterval(state.waitPoll);
   state.waitPoll = setInterval(async () => {
-    const me = await fetch("/api/auth/me", { credentials: "same-origin" }).then((r) => r.json()).catch(() => null);
+    const me = await fetch("api/auth/me", { credentials: "same-origin" }).then((r) => r.json()).catch(() => null);
     if (me && me.user && me.parents && me.parents.length) { clearInterval(state.waitPoll); toast("You're in! The elder said yes."); boot(); }
   }, 3000);
 };
 
 /* ---------------------------------------------------------------- history (family and clinic) */
 VIEWS.history = async (main) => {
-  const r = await api("/api/family/history" + P());
+  const r = await api("api/family/history" + P());
   const p = state.parent || {};
   main.innerHTML = `<div class="page-head"><div><div class="eyebrow">History</div><h1>What happened</h1><p>Every call, review and change in ${esc(p.call_name || "this")}'s circle, live.</p></div></div>
     <div class="card">${historyList(r.items)}</div>`;
@@ -392,7 +725,7 @@ VIEWS.history = async (main) => {
 
 /* ---------------------------------------------------------------- elder app */
 VIEWS.home = async (main) => {
-  const [h, ppl, hist] = await Promise.all([api("/api/family/home" + P()), api("/api/people/me"), api("/api/family/history" + P())]);
+  const [h, ppl, hist] = await Promise.all([api("api/family/home" + P()), api("api/people/me"), api("api/family/history" + P())]);
   const p = h.parent, c = ppl.circles[0];
   state.parent = { ...state.parent, ...p };
   const pending = c ? c.members.filter((m) => m.status === "pending") : [];
@@ -416,13 +749,13 @@ VIEWS.home = async (main) => {
   wireDecisions(main);
   qr($("#qr"), ppl.me.smriti_id);
   $("#callMe").onclick = () => callDialog("checkin");
-  $("#lang").onchange = async (e) => { await api("/api/family/settings", { method: "PATCH", body: { language: e.target.value, parent_id: state.parentId } }); toast(tr("Smriti will speak {lang}.", { lang: langs[e.target.value] })); };
-  main.querySelectorAll("[data-share]").forEach((b) => (b.onclick = async () => { await api("/api/family/settings", { method: "PATCH", body: { share_level: b.dataset.share, parent_id: state.parentId } }); route(); }));
-  $("#pause").onclick = async () => { await api("/api/family/settings", { method: "PATCH", body: { calls_paused: !p.calls_paused, parent_id: state.parentId } }); await refreshMe(); route(); };
+  $("#lang").onchange = async (e) => { await api("api/family/settings", { method: "PATCH", body: { language: e.target.value, parent_id: state.parentId } }); toast(tr("Smriti will speak {lang}.", { lang: langs[e.target.value] })); };
+  main.querySelectorAll("[data-share]").forEach((b) => (b.onclick = async () => { await api("api/family/settings", { method: "PATCH", body: { share_level: b.dataset.share, parent_id: state.parentId } }); route(); }));
+  $("#pause").onclick = async () => { await api("api/family/settings", { method: "PATCH", body: { calls_paused: !p.calls_paused, parent_id: state.parentId } }); await refreshMe(); route(); };
 };
 
 VIEWS.mycircle = async (main) => {
-  const r = await api("/api/people/me");
+  const r = await api("api/people/me");
   const c = r.circles[0];
   main.innerHTML = `<div class="page-head"><div><div class="eyebrow">${tr("My family")}</div><h1>${tr("Who can see how I am")}</h1><p>${tr("Only people you said yes to.")}</p></div></div>
     <div class="card">${c ? c.members.map((m) => memberRow(m, true)).join("") : `<p class="empty">Nobody yet.</p>`}</div>`;
@@ -430,7 +763,7 @@ VIEWS.mycircle = async (main) => {
 };
 
 VIEWS.mycalls = async (main) => {
-  const t = await api("/api/family/timeline" + P());
+  const t = await api("api/family/timeline" + P());
   main.innerHTML = `<div class="page-head"><div><div class="eyebrow">${tr("My calls")}</div><h1>${tr("My chats with Smriti")}</h1></div><button class="btn" id="callMe">${ic("phone")} ${tr("Call me now")}</button></div>
     <div class="thread">${t.items.filter((c) => c.kind !== "family").slice(0, 12).map((c) => knot(c, t.parent)).join("")}</div>`;
   $("#callMe").onclick = () => callDialog("checkin");
@@ -438,19 +771,19 @@ VIEWS.mycalls = async (main) => {
 
 /* ---------------------------------------------------------------- clinic app */
 VIEWS.patients = async (main) => {
-  const r = await api("/api/care/patients");
-  main.innerHTML = `<div class="page-head"><div><div class="eyebrow">Care team · ${esc((state.me.user || {}).org || "")}</div><h1>Patients</h1>
-    <p>People whose families shared their Smriti results with you, with their agreement.</p></div><a class="btn" href="#/care">${ic("care")} Review queue</a></div>
+  const r = await api("api/care/patients");
+  main.innerHTML = `<div class="page-head"><div><div class="eyebrow">Care team${(state.me.user || {}).org ? " · " + esc(state.me.user.org) : ""}</div><h1>Patients</h1>
+    <p>Every family on Smriti. You review their flags before the family hears about them.</p></div><a class="btn" href="#/care">${ic("care")} Review queue</a></div>
     <div class="card"><table class="calls"><tr><th>Name</th><th>Age</th><th>Language</th><th>Last memory check</th><th>Open cases</th><th>Last contact</th><th></th></tr>
     ${r.items.map((p) => `<tr><td><b>${esc(p.full_name)}</b><div class="small muted">${esc(p.city)} · family: ${esc(p.family_name)}</div></td><td>${p.age || "—"}</td><td>${LANG[p.language] || p.language}</td>
       <td>${p.last_memory_outcome ? `<span class="chip ${OUTCOME[p.last_memory_outcome][1]}">${esc(p.last_memory_outcome)}</span>` : "—"}</td>
       <td>${p.open_cases ? `<span class="chip ${p.worst === "red" ? "red" : "yellow"}">${p.open_cases}</span>` : "0"}</td><td>${p.last_contact ? ago(p.last_contact) : "—"}</td>
-      <td><a class="btn quiet sm" href="#/patient/${p.id}">Open</a></td></tr>`).join("")}</table></div>`;
+      <td><a class="btn quiet sm" href="#/patient/${p.id}">Open</a></td></tr>`).join("") || `<tr><td colspan="7"><p class="empty">No families yet. When a family sets up Smriti in the family app, their parent appears here by itself.</p></td></tr>`}</table></div>`;
 };
 
 VIEWS.patient = async (main, id) => {
   if (id) { state.parentId = id; store.set(`parent.${state.me.user.id}`, id); }
-  const [t, s] = await Promise.all([api("/api/family/timeline" + P()), api("/api/family/doctor-summary" + P())]);
+  const [t, s] = await Promise.all([api("api/family/timeline" + P()), api("api/family/doctor-summary" + P())]);
   const p = t.parent, m = s.memory;
   state.parent = p;
   main.innerHTML = `<div class="page-head"><div><div class="eyebrow"><a href="#/patients">Patients</a> · ${esc(p.city)}</div><h1>${esc(p.full_name)}</h1>
@@ -458,7 +791,7 @@ VIEWS.patient = async (main, id) => {
     <div class="row"><button class="btn" id="orderMem">${ic("brain")} Order a memory check</button><a class="btn quiet" href="#/doctor">${ic("print")} Summary</a></div></div>
     <div class="grid g2"><div class="card"><h3>Memory check</h3>${m ? `<div class="row" style="margin:6px 0 14px"><span class="chip ${OUTCOME[m.outcome][1]}">${esc(m.outcome)}</span><span class="muted small">${fmtDay(m.at)}</span></div>
       <table class="calls"><tr><th>Word learning</th><th>Delayed recall</th><th>Animals (60 s)</th><th>Orientation</th></tr><tr><td>${m.learning_total}/30</td><td>${m.delayed_recall}/10</td><td>${m.fluency_count}</td><td>${m.orientation_total}/5</td></tr></table>
-      <p class="small muted" style="margin-top:10px">10/66-based tasks by phone · schooling band ${esc(m.schooling_band || "unknown")} · not validated against clinical assessment yet · <a target="_blank" rel="noopener" href="/report.html?id=${encodeURIComponent(m.session_id)}">full report</a></p>` : `<p class="empty">No memory check yet.</p>`}</div>
+      <p class="small muted" style="margin-top:10px">10/66-based tasks by phone · schooling band ${esc(m.schooling_band || "unknown")} · not validated against clinical assessment yet · <a href="#/memreport/${encodeURIComponent(m.session_id)}">full report</a></p>` : `<p class="empty">No memory check yet.</p>`}</div>
       <div class="card bars"><h3>What came up (8 weeks)</h3>${Object.entries(s.flags_by_category).map(([k, v]) => `<div class="b"><span>${esc(k)}</span><div class="track"><div class="fill" style="width:${Math.min(100, v * 25)}%"></div></div><b>${v}</b></div>`).join("") || `<p class="empty">Nothing.</p>`}
       <p class="small muted" style="margin-top:8px">${s.calls_completed} of ${s.calls_planned} check-ins completed.</p></div></div>
     <h2 style="margin:26px 0 14px">Timeline</h2><div class="thread">${t.items.slice(0, 10).map((c) => knot(c, p)).join("")}</div>`;
@@ -466,3 +799,81 @@ VIEWS.patient = async (main, id) => {
 };
 
 boot();
+
+/* ---------------------------------------------------------------- full memory-check report (#/memreport/<session id>) */
+VIEWS.memreport = async (main, id) => {
+  const s = await api(`api/sessions/${encodeURIComponent(id || "")}`);
+  const back = state.app === "clinic" ? "#/care" : "#/memory";
+  const head = `<div class="page-head"><div><div class="eyebrow"><a href="${back}">${state.app === "clinic" ? "Review queue" : "Memory"}</a> · full report</div><h1>Memory check report</h1>
+    <p>Pilot: not a validated test and not a diagnosis.</p></div>`;
+  if (!s.report) {
+    const why = { declined: "The person said no to the check.", no_answer: "Nobody answered.", busy: "The line was busy.", failed: "The call failed." }[s.status];
+    main.innerHTML = `${head}</div><div class="card"><p class="muted">${why || "The report isn't ready yet: the call is still going or being scored."}</p></div>`;
+    return;
+  }
+  const r = s.report, dm = r.domains;
+  const out = OUTCOME[r.outcome] || [r.outcome, "missed"];
+  const BAND = { LOW: "up to 10 years of school", HIGH: "more than 10 years of school" };
+  const SRC = { ui: "entered on the form", call: "said on the call", assumed: "unknown, assumed" };
+  const ITEM = { day: "Day of the week", month: "Month", season: "Season", time_of_day: "Time of day", place: "Town / village" };
+  const MON = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+  const WEEK = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
+  const REVIEW = { pending: "waiting for the care team", reviewed: "reviewed", not_needed: "not needed" };
+  const answer = (item, v) => (v === null || v === undefined ? "–"
+    : item === "day" && /^\d$/.test(v) ? WEEK[Number(v)]
+    : item === "month" && /^\d{1,2}$/.test(v) ? MON[Number(v) - 1] : String(v));
+  const label = (w) => (r.language === "kn" && w.kn ? `${w.kn} (${w.en})` : `${w.id} (${w.en})`);
+  const words = (hits) => {
+    const set = new Set(hits);
+    return `<div class="row" style="flex-wrap:wrap;gap:6px;margin-top:8px">${r.word_list.map((w) => `<span class="chip ${set.has(w.id) ? "green" : ""}" title="${set.has(w.id) ? "remembered" : "not remembered"}">${set.has(w.id) ? "✓ " : ""}${esc(label(w))}</span>`).join("")}</div>`;
+  };
+  const score = (a, b) => `<div class="kpi"><div class="v">${a}<span class="muted" style="font-size:22px"> / ${b}</span></div></div>`;
+  const extra = (list) => (list && list.length ? `<p class="small muted" style="margin-top:6px">Other words said (not counted): ${esc(list.join(", "))}</p>` : "");
+  const sm = r.speech_markers || {};
+  const markers = [["Answers given", sm.user_turns], ["Average words per answer", sm.mean_words_per_turn], ["Filler-word rate", sm.filler_rate],
+    ["“I don't know” answers", sm.dont_know_count], ["Average response delay (s)", sm.mean_response_latency_s]];
+  const an = dm.animal_naming;
+  main.innerHTML = `${head}<button class="btn quiet" id="printReport">${ic("print")} Print / save PDF</button></div>
+    <div class="card"><div class="row" style="gap:10px;flex-wrap:wrap"><span class="chip ${out[1]}">${esc((r.outcome_label && r.outcome_label.en) || r.outcome)}</span><span class="result-word">${esc(out[0])}</span>${s.is_demo ? `<span class="chip">sample</span>` : ""}</div>
+      <p class="muted" style="margin-top:10px">Rule: <code>${esc(r.rule_fired)}</code> · schooling: ${BAND[r.band] || esc(r.band)} (${SRC[r.band_source] || esc(r.band_source)}) · human review: ${REVIEW[s.review_status] || esc(s.review_status || "")}</p>
+      ${r.invalid_reason_text && r.invalid_reason_text.length ? `<h3 style="margin-top:14px">Why the call is invalid</h3><ul>${r.invalid_reason_text.map((x) => `<li>${esc(x.en)}</li>`).join("")}</ul><p class="small muted">The scores below are shown only for transparency. Don't read them as a result.</p>` : ""}
+      <h3 style="margin-top:14px">Suggested next step</h3><p>${esc((r.next_step_text && r.next_step_text.en) || "")}</p>
+      ${r.helpline_text ? `<p class="small" style="margin-top:8px"><b>Support:</b> ${esc(r.helpline_text)}</p>` : ""}</div>
+    <div class="grid g2" style="margin-top:20px">
+      <div class="card"><h3>Remembering the words later</h3>${score(dm.delayed_recall.score, dm.delayed_recall.max)}${words(dm.delayed_recall.words)}${extra(dm.delayed_recall.intrusions)}</div>
+      <div class="card"><h3>Word learning (3 tries)</h3>${score(dm.word_learning.total, dm.word_learning.max)}${dm.word_learning.trials.map((hits, i) => `<p class="small muted" style="margin-top:12px">Try ${i + 1}: ${hits.length}/10</p>${words(hits)}${extra(dm.word_learning.intrusions[i])}`).join("")}</div>
+      <div class="card"><h3>Naming animals</h3><div class="kpi"><div class="v">${an.count}</div></div><p class="small muted">Animals counted (synonyms once)</p>
+        <div class="row" style="flex-wrap:wrap;gap:6px;margin-top:8px">${an.words.map((w) => `<span class="chip green">${esc(w)}</span>`).join("")}</div>
+        ${an.non_animals.length ? `<p class="small muted" style="margin-top:6px">Not counted: ${esc(an.non_animals.join(", "))}</p>` : ""}
+        <p class="small muted" style="margin-top:8px">${an.experimental_timing ? "Timing is experimental: the whole naming part was counted, not exactly 60 seconds." : "Counted within 60 seconds using the call recording."}</p></div>
+      <div class="card"><h3>Day, month and place</h3>${score(dm.orientation.score, dm.orientation.max)}
+        <table class="calls">${Object.keys(ITEM).map((k) => `<tr><td>${ITEM[k]}</td><td>${esc(answer(k, dm.orientation.answers[k]))}</td><td>${dm.orientation.items[k] ? "✓" : "✗"}</td></tr>`).join("")}</table>
+        <p class="small muted" style="margin-top:8px">The town or village answer is accepted if given; a reviewer can check it.</p></div></div>
+    <div class="card" style="margin-top:20px"><h3>Hearing / line check</h3>${score(r.hearing.correct, r.hearing.max)}
+      <table class="calls">${r.hearing.items.map((it) => `<tr><td>${esc(it.expected.split("").join("-"))}</td><td>${esc(it.heard.join(" / ") || "–")}</td><td>${it.correct ? "✓" : "✗"}</td></tr>`).join("")}</table></div>
+    <details class="card" style="margin-top:20px"><summary><b>Experimental speech markers</b> <span class="small muted">(not used for the result)</span></summary>
+      <table class="calls" style="margin-top:10px">${markers.map(([k, v]) => `<tr><td>${k}</td><td>${esc(v === null || v === undefined ? "–" : String(v))}</td></tr>`).join("")}</table></details>
+    <p class="small muted" style="margin-top:16px">Every score comes from the words in the call transcript, matched by fixed rules (no AI judgement). Scorer ${esc(r.scorer_version || "")}${r.call_time ? " · " + esc(r.call_time) : ""}.</p>`;
+  $("#printReport").onclick = () => window.print();
+};
+
+/* ---------------------------------------------------------------- "More": every page and every account action
+   (the bottom tab bar on narrow screens has room for four pages plus this one) */
+VIEWS.more = async (main) => {
+  const u = state.me.user;
+  const nav = NAV[state.app] || NAV.family;
+  const p = state.parent;
+  const ports = state.me.ports || {};
+  const canRemove = state.app === "family" && p && myRole() === "family";
+  main.innerHTML = `<div class="page-head"><div><div class="eyebrow">${tr(APP_NAME[state.app])}</div><h1>${tr("More")}</h1></div></div>
+    <div class="card"><h3>${tr("Pages")}</h3><div class="more-links">${nav.map(([r, label, icon]) => `<a href="#/${r}">${ic(icon)}<span>${tr(label)}</span></a>`).join("")}</div></div>
+    ${state.app === "elder" ? "" : `<div class="card" style="margin-top:16px"><h3>${tr("Calls")}</h3>${callModeSwitch()}</div>`}
+    ${state.app === "family" ? `<div class="card" style="margin-top:16px"><h3>${tr("Profiles")}</h3>${parentSwitcher()}
+      ${canRemove ? `<button type="button" class="btn danger sm" id="removeProfile" style="margin-top:12px">Remove ${esc(p.call_name)}'s profile</button>` : ""}</div>` : ""}
+    <div class="card" style="margin-top:16px"><h3>${tr("You")}</h3>
+      <div class="who"><div class="avatar sm">${esc(u.name[0])}</div><div><b>${esc(u.name)}</b><small>${esc(u.role_label)} · ${tr("Smriti ID")} ${esc(u.smriti_id)}</small></div></div>
+      <div style="margin-top:12px">${uiLangSwitch()}</div>
+      <button type="button" class="btn quiet" id="moreLogout" style="margin-top:14px;width:100%">${tr("Log out")}</button>
+      <p class="small muted" style="margin-top:12px">${tr("Demo apps")}: <a href="${ports.family}">Family</a> · <a href="${ports.elder}">Elder</a> · <a href="${ports.clinic}">Care team</a></p></div>`;
+  $("#moreLogout").onclick = logout;
+};

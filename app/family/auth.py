@@ -1,8 +1,9 @@
 """Who is asking: a logged-in demo user (signed cookie) or staff (the ADMIN_REVIEW_TOKEN).
 
-Three apps run on three ports of one server (family :8000, elder :8001, clinic :8002 by default). Browsers share
-cookies across ports of the same host, so each port gets its own cookie name: logging in as Ravi on :8000 does not
-log you in as Ravi on :8001.
+Three apps run on three ports of one server (family :8000, elder :8001, clinic :8002 by default), or on one
+address under three paths (/ family, /elder/ elder, /care/ care team; see PREFIXES). Browsers share cookies across
+ports and paths of the same host, so each app gets its own cookie name: logging in as Ravi in the family app does
+not log you in anywhere else.
 """
 
 from __future__ import annotations
@@ -21,15 +22,23 @@ from app.family.models import Circle, CircleMember, Parent, User
 from app.settings import get_settings
 
 APPS = ("family", "elder", "clinic")
+PREFIXES = {"family": "family", "elder": "elder", "care": "clinic"}  # /elder/... is the elder app on any port
 
 
 def app_for_port(port: int | None) -> str:
     s = get_settings()
+    if s.one_address:
+        return "family"
     return {s.elder_port: "elder", s.clinic_port: "clinic"}.get(port or 0, "family")
 
 
+def app_for(request: Request) -> str:
+    """Which app a request belongs to: its path prefix (set by AppPrefix in main.py), else its port."""
+    return request.scope.get("smriti_app") or app_for_port(request.url.port)
+
+
 def cookie_name(request: Request) -> str:
-    return f"smriti_{request.url.port or 80}"
+    return f"smriti_{app_for(request)}_{request.url.port or 0}"
 
 
 def sign(user_id: str) -> str:
@@ -65,6 +74,12 @@ def load_principal(db: DBSession, user: User | None, staff: bool) -> Principal:
     p = Principal(user=user, staff=staff)
     if staff:
         p.parent_ids = [x.id for x in db.exec(select(Parent)).all()]
+        return p
+    if user and user.role == "clinic":
+        # Smriti's own care team reviews every family's flags: no invitation needed.
+        for x in db.exec(select(Parent)).all():
+            p.parent_ids.append(x.id)
+            p.roles[x.id] = "clinic"
         return p
     if user:
         rows = db.exec(

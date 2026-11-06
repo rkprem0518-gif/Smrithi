@@ -59,21 +59,28 @@ flowchart LR
 
 ## Demo in 5 minutes
 
-One command sets everything up and serves **three apps on three ports**, all live-synced: anything done in one app shows up in the others within a second. No keys needed (calls are simulated). Needs Python 3.11+.
+One command sets everything up and opens **three apps**, all live-synced: anything done in one app shows up in the others within a second. No keys needed (calls are simulated until you connect Bolna). Needs Python 3.11+.
 
 ```bash
-python start.py --open        # first run: makes .venv, installs packages, creates .env, opens the three apps
+python start.py               # first run: makes .venv, installs packages, creates .env, opens the three apps
 ```
 
-`python start.py --reset` gives a fresh sample family (Appa, Ravi, Priya, Dr. Meera) before starting. No Python? `docker compose up --build`, then open the same three addresses.
+On Windows you can also double-click **`start.bat`**. No Python? `docker compose up --build`, then open the same three addresses.
 
-| Open | Log in as (demo button, no password) | Try this |
+Smriti starts **empty**, and the family app walks you through setup in five short steps: welcome → about you → who Smriti should call (name, age, city, one of 11 languages, what the family may see) → call days and time (and questions to ask) → done, with "Try a call now".
+
+| Open | What you do | Try this |
 |---|---|---|
-| **http://localhost:8000/smriti.html** (Family) | Ravi Rao | Today → **Call Appa now** (watch the live call panel) → the new entry slides into the timeline. Or **+ Add a parent** and call them in English or Hindi. |
-| **http://localhost:8001** (Elder) | Raghunath Rao (Appa) | Say **yes** to Priya joining. Ravi's history updates live. Change the language, what's shared, or pause calls. |
-| **http://localhost:8002** (Care team) | Dr. Meera Iyer | Review queue → Appa's memory check (REFER) → **Approve and call Ravi** → a memory-clinic visit appears on the family calendar. |
+| **http://localhost:8000/smriti.html** (Family) | **Set up my family** (no password in the demo) | Finish setup → **Try a call now** (watch the live call panel) → the new entry slides into the timeline. |
+| **http://localhost:8001** (Elder) | Tap the parent you added | Change the language, what's shared, or pause calls. The family sees it live. |
+| **http://localhost:8002** (Care team) | **Create my account** (name and clinic) | Every family shows up under Patients by itself. Review a flag → **Approve and call the family** → the visit appears on the family calendar. |
+
+- **No time to set up?** On the welcome screen, **Explore a sample family instead** adds Appa with 8 weeks of calls (or run `python start.py --sample`).
+- **Remove a profile:** Family circle → **Remove**. **Delete everything:** **Start over** in the sidebar (or `python start.py --reset`).
 
 - **Real calls switch:** in the sidebar of every app. It's **off by default**, so calls are simulated end to end and no Bolna credits are spent. Turning it on asks first and shows the wallet balance.
+- **Real calls only work with your own Bolna API key,** and a Bolna trial account can call only numbers verified in your Bolna dashboard (Profile → Verified numbers).
+- **Your own Bolna account:** under the switch, **Connect Bolna** → paste your Bolna API key. Smriti checks it and sets up its three voice agents on your account (check-in, call to the family, memory check). No call is placed and no credits are used until you switch Real calls on. The key stays on the server and is never shown in the browser again; **Manage → Disconnect** deletes it.
 - **Full demo script:** [docs/DEMO_PLAN.md](docs/DEMO_PLAN.md).
 - **Hard questions and answers:** [docs/DEMO_QA.md](docs/DEMO_QA.md).
 
@@ -98,7 +105,7 @@ python start.py --open        # first run: makes .venv, installs packages, creat
 - **Reports:** mood across 8 weeks, what came up, how many calls were completed, and a **printable one-page doctor summary** (only if the parent allows sharing).
 - **Schedules:** "every day at 8 pm, ask: *did you take your BP tablet?*", with **Run now**.
 - **Family circle:** members, invites by phone number or **Smriti ID**, and contacts that connect when both people add each other.
-- **Names Smriti uses:** set your own name, the parent's name, what you call them ("Amma") and how Smriti greets them ("Kamala ji"). Smriti says these on every call, for example "Is there anything you'd like me to tell Prem?"
+- **Names Smriti uses:** set your own name, the parent's name, what you call them ("Amma") and how Smriti greets them ("Kamala ji"). Smriti says these on every call, for example "Is there anything you'd like me to tell Arjun?"
 - **+ Add a parent:** name, age, city, preferred language (11), relation and sharing level. They get their own elder login. Switch between parents from the sidebar.
 - **History:** everything that happened in the circle, live.
 
@@ -256,26 +263,29 @@ More detail: [docs/architecture.md](docs/architecture.md).
 ```bash
 git clone https://github.com/rkprem0518-gif/Smrithi.git
 cd Smrithi
-python start.py --open
+python start.py
 ```
 
-`start.py` creates `.venv`, installs the packages, copies `.env.example` to `.env` (offline mode), and starts the three apps:
+`start.py` creates `.venv`, installs the packages, makes a `.env` with its own random secrets, starts the three apps and opens them in your browser (`--no-open` to skip that):
 
-| App | Address | Log in as |
+| App | Address | First time |
 |---|---|---|
-| Family | http://localhost:8000/smriti.html | Ravi Rao or Priya Rao |
-| Elder | http://localhost:8001/smriti.html | Raghunath Rao (Appa) |
-| Care team | http://localhost:8002/smriti.html | Dr. Meera Iyer |
+| Family | http://localhost:8000/smriti.html | Guided setup: your name, your parent, call times |
+| Elder | http://localhost:8001/smriti.html | Tap the parent the family added |
+| Care team | http://localhost:8002/smriti.html | Create an account; every family appears under Patients |
 
-- **Stop:** Ctrl+C. **Start again:** `python start.py`. **Fresh sample family:** `python start.py --reset`.
+The same three apps are also on one address: http://localhost:8000/smriti.html, http://localhost:8000/elder/ and http://localhost:8000/care/.
+
+- **Real calls:** in the family app, **Connect Bolna** (under the Real calls switch) and paste your API key. That's all; no `.env` editing. `python start.py --offline` makes sure Bolna is never contacted.
+- **Stop:** Ctrl+C. **Start again:** `python start.py`. **Empty again:** `python start.py --reset`. **Sample family:** `python start.py --sample`.
 - **Ports busy?** It says which ones. Close the other window, or set `FAMILY_PORT`, `ELDER_PORT` and `CLINIC_PORT` in `.env`.
 - **No Python?** Run `docker compose up --build` and open the same addresses.
 - **Tests:** `.venv/Scripts/python -m pip install -r requirements-dev.txt`, then `.venv/Scripts/python -m pytest`. On macOS/Linux use `.venv/bin/python`. Bolna is always mocked in the tests.
 
-**Hosting:** Smriti needs a server that keeps running (live updates between the apps, the job that fetches call results, a database file), so serverless hosts like Vercel don't fit. A container host such as Render, Railway or Fly works. [`render.yaml`](render.yaml) deploys the family app; serving all three apps from one public address is on the roadmap.
+**Host it on Render (free, nothing to fill in):** Render dashboard → **New → Blueprint** → pick this repository → **Apply**. [`render.yaml`](render.yaml) builds the Docker image and serves all three apps on one address: `https://<service>.onrender.com/smriti.html` (family), `/elder/` and `/care/`. Calls are simulated until someone uses **Connect Bolna**; the webhook URL is set from Render's own address. On the free plan the service sleeps after 15 idle minutes (the next visit takes about a minute) and the sample family comes back on every deploy. Serverless hosts like Vercel don't fit: Smriti needs a server that keeps running (live updates between the apps, the job that fetches call results, a database file).
 
-**Live, with Bolna:**
-1. Put `BOLNA_API_KEY` in `.env`, then set `DEMO_MODE=0` and long random values for `SECRET_SALT`, `ADMIN_REVIEW_TOKEN` and `BOLNA_WEBHOOK_TOKEN`.
+**Live with keys in `.env` instead (for your own server):**
+1. Put `BOLNA_API_KEY` in `.env`, then set `DEMO_MODE=0` and long random values for `SECRET_SALT`, `ADMIN_REVIEW_TOKEN` and `BOLNA_WEBHOOK_TOKEN` (`start.py` already makes random ones).
 2. Create the agents. Creating or updating an agent places no calls and spends no credits.
    ```bash
    python scripts/create_agent.py --multilingual          # memory check  -> BOLNA_AGENT_ID (+ BOLNA_MULTILINGUAL=1)
@@ -356,7 +366,7 @@ Each fix is in the git history; the pilot will be logged in [docs/pilot_log.md](
 
 ```
 app/
-  main.py              app factory, startup: database, sample family, poller, scheduler
+  main.py              app factory, startup: database, poller, scheduler (sample family only if asked)
   api/                 family + people + care + auth (demo login, live SSE, call mode), events, ops,
                        sessions, webhook, review
   family/              flag rules, calls (start/finish/simulate), care team, timeline, calendar, reports,
@@ -368,7 +378,7 @@ app/
 config/                agent.json (5 agents), flags.yaml, playbook.yaml (India topic cards),
                        scoring.yaml, wordlists.yaml, animals.yaml
 prompts/               checkin_agent.md, family_agent.md, smriti_agent.md (memory check)
-scripts/               run_demo (3 ports), seed_family, create_agent, check_live, test_call
+scripts/               run_demo (3 ports or one address), seed_family, create_agent, check_live, test_call
 fixtures/              5 sample memory-check calls (made up, no real people)
 tests/                 328 tests: scoring, API, Bolna client, live updates, family product
 docs/                  BLUEPRINT · DEMO_PLAN · DEMO_QA · architecture · scoring_spec · ethics_and_limits · pilot_log

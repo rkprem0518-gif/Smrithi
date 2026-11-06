@@ -8,6 +8,7 @@ import re
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager, suppress
 from pathlib import Path
+from typing import Any
 
 from fastapi import FastAPI, Request
 from fastapi.responses import RedirectResponse
@@ -16,6 +17,7 @@ from fastapi.staticfiles import StaticFiles
 from app.api import demo, events, family, health, ops, review, sessions, webhook
 from app.db import init_db, new_db
 from app.family import seed as family_seed
+from app.family.auth import PREFIXES
 from app.logs import log
 from app.services.ops import reset_wallet_cache
 from app.services.orchestrator import seed_demo_sessions
@@ -24,6 +26,30 @@ from app.settings import get_settings
 
 WEB_DIR = Path(__file__).resolve().parent / "web"
 _TOKEN_IN_URL = re.compile(r"(token=)[^&\s\"]+")
+
+
+class AppPrefix:
+    """One address, three apps: /elder/... and /care/... reach the same routes with the app remembered in the
+    request scope (auth.app_for), so a host that gives one port (Render, Railway) still serves all three."""
+
+    def __init__(self, app: Any) -> None:
+        self.app = app
+
+    async def __call__(self, scope: dict, receive: Any, send: Any) -> None:
+        if scope["type"] in ("http", "websocket"):
+            path: str = scope["path"]
+            for prefix, name in PREFIXES.items():
+                head = f"/{prefix}"
+                if path == head:  # /elder -> /elder/smriti.html
+                    response = RedirectResponse(f"{head}/smriti.html")
+                    await response(scope, receive, send)
+                    return
+                if path.startswith(head + "/"):
+                    scope = {**scope, "path": path[len(head):], "smriti_app": name, "smriti_prefix": head}
+                    if isinstance(scope.get("raw_path"), bytes):
+                        scope["raw_path"] = scope["path"].encode()
+                    break
+        await self.app(scope, receive, send)
 
 
 class _RedactTokenFilter(logging.Filter):
@@ -51,10 +77,9 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     poller: asyncio.Task | None = None
     if settings.demo_mode:
         seed_demo_sessions(settings)
-    else:
-        poller = asyncio.create_task(run_poller(settings, stop))
-        if not settings.webhook_reachable:
-            log("webhook_not_reachable", hint="PUBLIC_BASE_URL is not public https; relying on the poller")
+    elif not settings.webhook_reachable:
+        log("webhook_not_reachable", hint="PUBLIC_BASE_URL is not public https; relying on the poller")
+    poller = asyncio.create_task(run_poller(settings, stop))  # idle until Bolna is connected
     scheduler: asyncio.Task | None = None
     if settings.scheduler_enabled:
         from app.family.scheduler import run_scheduler
@@ -82,13 +107,14 @@ def create_app() -> FastAPI:
 
     @app.get("/", include_in_schema=False)
     def index(request: Request) -> RedirectResponse:
-        """The family, elder and clinic apps share one page; scripts/run_demo.py serves it on three ports."""
-        s = get_settings()
-        if request.url.port in (s.elder_port, s.clinic_port):
-            return RedirectResponse("/smriti.html")
-        return RedirectResponse("/index.html")
+        """The family, elder and clinic apps share one page, on three ports or under three paths."""
+        prefix = request.scope.get("smriti_prefix")
+        if prefix:
+            return RedirectResponse(f"{prefix}/smriti.html")
+        return RedirectResponse("/smriti.html")
 
     app.mount("/", StaticFiles(directory=WEB_DIR, html=True), name="web")
+    app.add_middleware(AppPrefix)
     return app
 
 

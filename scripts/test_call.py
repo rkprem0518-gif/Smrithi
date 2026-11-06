@@ -83,7 +83,7 @@ async def main() -> int:
             r = score.report_json
             print(f"OUTCOME: {r['outcome']}  ({r['rule_fired']})")
             print(json.dumps(r["domains"], ensure_ascii=False, indent=2))
-            print(f"\nReport page: {settings.public_base_url.rstrip('/')}/report.html?id={session_id}")
+            print(f"\nReport page: {settings.public_base_url.rstrip('/')}/smriti.html#/memreport/{session_id}")
     return 0
 
 

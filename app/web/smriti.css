@@ -370,3 +370,69 @@ html[lang="hi"] h1, html[lang="hi"] h2, html[lang="hi"] h3, html[lang="hi"] .res
 @media (max-width: 980px) {
   .side-foot .foot-mode { display: block; }
 }
+.linkish { background: none; border: 0; padding: 0; margin-top: 8px; color: var(--peacock); font: inherit; text-decoration: underline; cursor: pointer; text-align: left; }
+.btn.danger { background: #A33A28; border-color: #A33A28; color: #fff; }
+.credits .btn.sm { justify-content: center; }
+
+/* ---------------------------------------------------------------- welcome: guided setup */
+.wiz { padding: 4vh 16px 40px; }
+.wiz-card { max-width: 680px; margin: 0 auto; padding: 34px; }
+.wiz-steps { display: flex; gap: 8px; list-style: none; margin: 26px 0 8px; padding: 0; }
+.wiz-steps li { flex: 1; font-size: 12.5px; color: var(--ink-3); }
+.wiz-steps li i { display: block; height: 5px; border-radius: 5px; background: var(--line); margin-bottom: 6px; }
+.wiz-steps li.done i { background: var(--peacock); }
+.wiz-steps li.now i { background: var(--marigold); }
+.wiz-steps li.now { color: var(--ink); font-weight: 700; }
+.wiz-title { margin-top: 22px; font-size: 28px; }
+.wiz-lead { margin-top: 8px; font-size: 17px; line-height: 1.5; }
+.wiz-points { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin: 22px 0 16px; }
+.wiz-points div { background: var(--mist); border-radius: 14px; padding: 14px 16px; }
+.wiz-points b { display: flex; align-items: center; gap: 8px; color: var(--peacock-2); }
+.wiz-points span { display: block; margin-top: 6px; font-size: 14.5px; color: var(--ink-2); line-height: 1.45; }
+.lang-grid { display: flex; flex-wrap: wrap; gap: 8px; }
+.lang-grid .chip, #days .chip { cursor: pointer; border: 1.5px solid var(--line); min-height: 40px; padding: 6px 14px; font-size: 15px; }
+.lang-grid .chip.peacock, #days .chip.peacock { border-color: var(--peacock); }
+.share-pick { display: grid; gap: 8px; }
+.choice { display: grid; grid-template-columns: 22px 1fr; column-gap: 10px; align-items: start; padding: 12px 14px; border: 1.5px solid var(--line); border-radius: 12px; cursor: pointer; }
+.choice input { grid-row: span 2; margin-top: 4px; accent-color: var(--peacock); }
+.choice small { color: var(--ink-3); }
+.choice:has(input:checked) { border-color: var(--peacock); background: var(--peacock-soft); }
+.wiz-done { list-style: none; padding: 0; margin: 16px 0 0; display: grid; gap: 8px; font-size: 16px; }
+.wiz-next { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 12px; }
+.wiz-tile { display: block; text-align: left; padding: 14px 16px; border-radius: 14px; border: 1.5px solid var(--line); background: var(--card); color: inherit; font: inherit; cursor: pointer; text-decoration: none; }
+.wiz-tile:hover { border-color: var(--peacock); }
+.wiz-tile b { display: flex; align-items: center; gap: 8px; color: var(--peacock-2); }
+.wiz-tile span { display: block; margin-top: 6px; font-size: 14px; color: var(--ink-2); }
+.empty-state { text-align: center; padding: 18px 0 4px; }
+.empty-state .big { font-size: 46px; }
+.danger-zone { border: 1.5px solid #E9C4BC; }
+@media (max-width: 640px) {
+  .wiz-card { padding: 22px; }
+  .wiz-points, .wiz-next { grid-template-columns: 1fr; }
+  .wiz-steps li { font-size: 0; }
+}
+.wiz-points b svg, .wiz-tile b svg { width: 20px; height: 20px; flex: none; }
+body.setup .shell { grid-template-columns: 1fr; }
+body.setup .side, body.setup .tabbar { display: none; }
+body.setup main { margin: 0 auto; padding: 24px 16px 60px; }
+.bolna-note { font-size: 12.5px; line-height: 1.45; color: var(--ink-3); margin-top: 10px; }
+.notice-box { background: var(--amber-soft); color: #6E4A0C; border-radius: 12px; padding: 10px 14px; font-size: 14.5px; line-height: 1.45; }
+.wiz-foot { margin-top: 22px; padding-top: 14px; border-top: 1px solid var(--line); }
+.wiz-foot .linkish { margin: 0; font-size: inherit; }
+
+/* ---------------------------------------------------------------- dialogs scroll on short screens */
+.scrim { display: flex; align-items: flex-start; justify-content: center; overflow-y: auto; overscroll-behavior: contain; }
+.modal { margin: auto; }
+.modal .actions { position: sticky; bottom: 0; background: var(--card); padding: 12px 0 4px; }
+
+/* ---------------------------------------------------------------- "More" page and the narrow tab bar */
+.more-links { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 8px; margin-top: 10px; }
+.more-links a { display: flex; align-items: center; gap: 10px; padding: 12px 14px; border-radius: 12px; background: var(--mist); color: var(--ink); text-decoration: none; font-weight: 700; }
+.more-links a svg { width: 20px; height: 20px; flex: none; }
+@media (max-width: 980px) {
+  .tabbar { grid-template-columns: repeat(auto-fit, minmax(0, 1fr)) !important; }
+  .side .side-foot { display: none; }
+  .side { padding: 12px 16px; }
+}
+.card .who { display: flex; align-items: center; gap: 12px; margin-top: 10px; }
+.card .who small { display: block; color: var(--ink-3); }

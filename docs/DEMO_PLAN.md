@@ -6,7 +6,7 @@ Built on top of [BLUEPRINT.md](BLUEPRINT.md). If this plan and the blueprint dis
 ## 0. Run the demo: three apps, three ports, one server
 
 ```bash
-.venv/Scripts/python scripts/seed_family.py --reset   # fresh sample family: Appa, Ravi, Priya, Dr. Meera
+.venv/Scripts/python scripts/seed_family.py --sample  # optional: sample family (Appa, Ravi, Priya, Dr. Meera); --empty to start blank
 .venv/Scripts/python scripts/run_demo.py              # one process, three ports, live sync between them
 ```
 
@@ -17,6 +17,8 @@ Built on top of [BLUEPRINT.md](BLUEPRINT.md). If this plan and the blueprint dis
 | http://localhost:8002 | Care team (clinic) | Dr. Meera Iyer | Patients, review queue, approve → Smriti calls the family, behind the call (costs) |
 
 - **Separate logins:** each port has its own login cookie, so all three can be open side by side in one browser.
+- **One address:** the same apps are also at http://localhost:8000/elder/ and http://localhost:8000/care/ (this is how the Render deploy serves them).
+- **Real calls with your own key:** family app → **Connect Bolna** (under the Real calls switch) → paste the API key. Smriti creates its three agents on that account; calls stay simulated until the switch is on.
 - **Live sync:** anything done in one app shows up in the others within a second.
 - **Screen language:** English · हिंदी · ಕನ್ನಡ, switched in the sidebar or on the login card.
 - **Ports:** set them in `.env` with `FAMILY_PORT`, `ELDER_PORT` and `CLINIC_PORT`.

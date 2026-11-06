@@ -6,6 +6,7 @@ from sqlmodel import Session as DBSession
 from sqlmodel import select
 
 from app.db import get_db
+from app.family import bolna_link
 from app.logs import log
 from app.models import Session
 from app.services.bolna_client import BolnaError
@@ -17,7 +18,7 @@ router = APIRouter(tags=["webhook"])
 
 async def _refresh(session_id: str) -> None:
     try:
-        await refresh_from_bolna(session_id, get_settings())
+        await refresh_from_bolna(session_id, bolna_link.current(get_settings()))
     except BolnaError as exc:
         log("webhook_refresh_failed", session_id=session_id, status_code=exc.status_code)
 
@@ -47,7 +48,7 @@ async def bolna_webhook(
             db.commit()
     log("webhook_received", execution_id=execution_id, matched=bool(session),
         bolna_status=body.get("status") if isinstance(body, dict) else None)
-    if session and not settings.demo_mode:
+    if session and not bolna_link.merged(db, settings).demo_mode:
         # Never trust the webhook body alone: re-fetch the execution from Bolna.
         background.add_task(_refresh, session.id)
     return Response(status_code=204)

@@ -338,37 +338,59 @@ def create_parent(
     return parent
 
 
-def reset_created(db: DBSession) -> int:
-    """Delete every parent added in the app (demo rehearsals). The sample family (Appa) stays."""
+def create_account(db: DBSession, *, name: str, role: str, relation: str = "", org: str = "") -> User:
+    """A new family member or care-team member signs up (no password: this is a demo login)."""
+    if role not in ("family", "clinic"):
+        raise PeopleError("Only family members and the care team sign up here; elders are added by their family.")
+    user = User(name=name, role=role, smriti_id=new_smriti_id(db, name), title=relation, org=org, is_demo=True)
+    db.add(user)
+    db.commit()
+    db.refresh(user)
+    return user
+
+
+def delete_parent(db: DBSession, parent: Parent) -> None:
+    """Remove one parent's profile with everything about them: calls, flags, notes, visits, schedules, circle,
+    history and their elder login."""
     from app.family.models import Appointment, CheckIn, Flag, Note
     from app.models import CallArtifact, Review, Score, Session
 
-    parents = db.exec(select(Parent).where(Parent.is_demo == False)).all()  # noqa: E712
+    for model in (Flag, Note, Appointment, Schedule, Activity):
+        for row in db.exec(select(model).where(model.parent_id == parent.id)).all():
+            db.delete(row)
+    for c in db.exec(select(CheckIn).where(CheckIn.parent_id == parent.id)).all():
+        if c.session_id:
+            for model in (Score, CallArtifact, Review):
+                for row in db.exec(select(model).where(model.session_id == c.session_id)).all():
+                    db.delete(row)
+            s = db.get(Session, c.session_id)
+            if s:
+                db.delete(s)
+        db.delete(c)
+    for circle in db.exec(select(Circle).where(Circle.parent_id == parent.id)).all():
+        for m in db.exec(select(CircleMember).where(CircleMember.circle_id == circle.id)).all():
+            db.delete(m)
+        db.delete(circle)
+    db.commit()
+    elder = db.get(User, parent.user_id) if parent.user_id else None
+    if elder:
+        for c in db.exec(select(Contact)).all():
+            if elder.id in (c.owner_id, c.contact_user_id):
+                db.delete(c)
+        db.commit()
+        db.delete(elder)
+    db.delete(parent)
+    db.commit()
+
+
+def start_over(db: DBSession) -> int:
+    """Delete every profile and every account: the next visitor sees the welcome screens.
+    The Bolna connection (if any) is server setup and stays."""
+    parents = db.exec(select(Parent)).all()
     for parent in parents:
-        for model in (Flag, Note, Appointment, Schedule, Activity):
-            for row in db.exec(select(model).where(model.parent_id == parent.id)).all():
-                db.delete(row)
-        for c in db.exec(select(CheckIn).where(CheckIn.parent_id == parent.id)).all():
-            if c.session_id:
-                for model in (Score, CallArtifact, Review):
-                    for row in db.exec(select(model).where(model.session_id == c.session_id)).all():
-                        db.delete(row)
-                s = db.get(Session, c.session_id)
-                if s:
-                    db.delete(s)
-            db.delete(c)
-        for circle in db.exec(select(Circle).where(Circle.parent_id == parent.id)).all():
-            for m in db.exec(select(CircleMember).where(CircleMember.circle_id == circle.id)).all():
-                db.delete(m)
-            db.delete(circle)
-        db.commit()
-        elder = db.get(User, parent.user_id) if parent.user_id else None
-        if elder:
-            for c in db.exec(select(Contact)).all():
-                if elder.id in (c.owner_id, c.contact_user_id):
-                    db.delete(c)
-            db.commit()
-            db.delete(elder)
-        db.delete(parent)
-        db.commit()
+        delete_parent(db, parent)
+    for model in (CircleMember, Circle, Contact, Activity, Schedule, User):
+        for row in db.exec(select(model)).all():
+            db.delete(row)
+    db.commit()
     return len(parents)

@@ -3,8 +3,7 @@
 ```mermaid
 flowchart TB
   subgraph Browser
-    P[index / start / live / report / review<br/>static HTML + JS, i18n hi/en]
-    W[webcall.js - Bolna Web Call SDK, optional]
+    P[smriti.html: family, elder and care-team apps<br/>one page, plain JS, live updates over SSE]
   end
   subgraph App["FastAPI (app/main.py)"]
     A[api/: sessions · webhook · review · demo · health]
@@ -21,8 +20,7 @@ flowchart TB
     B[Agent: GPT-4.1-mini + Sarvam Saaras STT + Sarvam Bulbul TTS<br/>Plivo telephony, transcript, recording_url]
   end
   P -- REST JSON --> A
-  P -- "poll GET /api/sessions/{id}" --> A
-  W -. WebRTC .-> B
+  P -- "live updates (SSE /api/auth/live)" --> A
   A --> O
   O --> BC
   PL --> BC

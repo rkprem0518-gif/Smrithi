@@ -21,11 +21,11 @@ from sqlmodel import select
 
 from app.api.events import SSE_HEADERS, format_sse
 from app.db import get_db
-from app.family import callmode, people, service
+from app.family import bolna_link, callmode, people, service
 from app.family.auth import (
     APPS,
     Principal,
-    app_for_port,
+    app_for,
     cookie_name,
     optional_principal,
     require_clinic,
@@ -90,7 +90,7 @@ class DemoLogin(BaseModel):
 
 @auth.get("/me")
 def me(request: Request, who: Principal | None = Depends(optional_principal), db: DBSession = Depends(get_db)) -> dict:
-    app = request.query_params.get("app") or app_for_port(request.url.port)
+    app = request.query_params.get("app") or app_for(request)
     app = app if app in APPS else "family"
     demo = [people.user_out(u) for u in db.exec(select(User).where(User.role == app, User.is_demo == True)).all()]  # noqa: E712
     s = get_settings()
@@ -103,11 +103,7 @@ def me(request: Request, who: Principal | None = Depends(optional_principal), db
         "parents": [],
         "languages": LANGUAGES,
         "demo_mode": s.demo_mode,
-        "ports": {
-            "family": f"http://{host}:{s.family_port}/smriti.html",
-            "elder": f"http://{host}:{s.elder_port}/smriti.html",
-            "clinic": f"http://{host}:{s.clinic_port}/smriti.html",
-        },
+        "ports": _app_links(request, host),
     }
     if who:
         out["staff"] = who.staff
@@ -120,11 +116,42 @@ def me(request: Request, who: Principal | None = Depends(optional_principal), db
     return out
 
 
+def _app_links(request: Request, host: str) -> dict[str, str]:
+    """Where the other two apps are: other ports locally, other paths on a one-address (hosted) server."""
+    s = get_settings()
+    if s.one_address or request.scope.get("smriti_app"):
+        return {"family": "/smriti.html", "elder": "/elder/smriti.html", "clinic": "/care/smriti.html"}
+    return {
+        "family": f"http://{host}:{s.family_port}/smriti.html",
+        "elder": f"http://{host}:{s.elder_port}/smriti.html",
+        "clinic": f"http://{host}:{s.clinic_port}/smriti.html",
+    }
+
+
 @auth.post("/demo-login")
 def demo_login(body: DemoLogin, request: Request, response: Response, db: DBSession = Depends(get_db)) -> dict:
     user = db.get(User, body.user_id)
     if not user or not user.is_demo:
         raise HTTPException(404, "Unknown demo user")
+    response.set_cookie(cookie_name(request), sign(user.id), httponly=True, samesite="lax", max_age=7 * 86400)
+    return {"user": people.user_out(user)}
+
+
+class SignUp(BaseModel):
+    name: str = Field(min_length=2, max_length=60)
+    relation: str = Field(default="", max_length=20)  # family: son, daughter ...
+    org: str = Field(default="", max_length=60)  # care team: clinic or organisation
+
+
+@auth.post("/signup", status_code=201)
+def signup(body: SignUp, request: Request, response: Response, db: DBSession = Depends(get_db)) -> dict:
+    """Create an account in this app (family or care team) and log in. Elders are added by their family."""
+    app = request.query_params.get("app") or app_for(request)
+    try:
+        user = people.create_account(db, name=body.name.strip(), role=app, relation=body.relation.strip(),
+                                     org=body.org.strip())
+    except people.PeopleError as exc:
+        raise HTTPException(exc.status_code, str(exc)) from exc
     response.set_cookie(cookie_name(request), sign(user.id), httponly=True, samesite="lax", max_age=7 * 86400)
     return {"user": people.user_out(user)}
 
@@ -147,9 +174,11 @@ async def get_call_mode(who: Principal = Depends(require_principal), db: DBSessi
     from app.services import ops
 
     s = get_settings()
-    out = {"live": callmode.live(db, s), "available": callmode.available(s), "wallet": None}
+    link = bolna_link.status(db, s)
+    out = {"live": callmode.live(db, s), "available": callmode.available(db, s), "wallet": None,
+           "bolna": link, "can_manage": _can_manage_bolna(who)}
     if out["available"]:
-        account = await ops.bolna_account(s)  # cached for a minute; no call is placed
+        account = await ops.bolna_account(bolna_link.merged(db, s))  # cached for a minute; no call is placed
         out["wallet"] = account.get("wallet")
     return out
 
@@ -159,13 +188,68 @@ async def put_call_mode(
     body: CallMode, who: Principal = Depends(require_principal), db: DBSession = Depends(get_db)
 ) -> dict:
     s = get_settings()
-    if body.live and not callmode.available(s):
-        raise HTTPException(409, "Real calls need the live server (DEMO_MODE=0 with Bolna keys). Calls stay simulated.")
+    if body.live and not callmode.available(db, s):
+        raise HTTPException(409, "Connect Bolna first (the button under the switch). Calls stay simulated")
     now = callmode.set_live(db, s, body.live, who.name)
     for pid in who.parent_ids:
         what = "Real calls on: calls now use Bolna credits." if now else "Real calls off: calls are simulated."
         people.log(db, pid, f"{who.name} switched {what[0].lower() + what[1:]}", kind="settings", actor=who.user)
-    return {"live": now, "available": callmode.available(s)}
+    return {"live": now, "available": callmode.available(db, s)}
+
+
+# ---------------------------------------------------------------- connect a Bolna account from the app
+
+
+class BolnaConnect(BaseModel):
+    api_key: str = Field(min_length=1, max_length=200)
+    checkin_agent_id: str = Field(default="", max_length=80)
+    family_agent_id: str = Field(default="", max_length=80)
+    memory_agent_id: str = Field(default="", max_length=80)
+    from_number: str = Field(default="", max_length=20)
+
+
+def _can_manage_bolna(who: Principal) -> bool:
+    """The family and the care team set up calling; the elder's app stays simple."""
+    return who.staff or (who.user is not None and who.user.role in ("family", "clinic"))
+
+
+@auth.get("/bolna")
+def bolna_status(who: Principal = Depends(require_principal), db: DBSession = Depends(get_db)) -> dict:
+    return bolna_link.status(db, get_settings())
+
+
+@auth.post("/bolna")
+async def bolna_connect(
+    body: BolnaConnect, who: Principal = Depends(require_principal), db: DBSession = Depends(get_db)
+) -> dict:
+    if not _can_manage_bolna(who):
+        raise HTTPException(403, "Only the family or the care team can connect Bolna.")
+    try:
+        out = await bolna_link.connect(
+            db, get_settings(), body.api_key, who.name,
+            agent_ids={"checkin": body.checkin_agent_id, "family": body.family_agent_id,
+                       "memory": body.memory_agent_id},
+            from_number=body.from_number,
+        )
+    except bolna_link.LinkError as exc:
+        raise HTTPException(exc.status_code, str(exc)) from exc
+    for pid in who.parent_ids:
+        people.log(db, pid, f"{who.name} connected a Bolna account (real calls stay off until switched on)",
+                   kind="settings", actor=who.user)
+    return out
+
+
+@auth.delete("/bolna")
+def bolna_disconnect(who: Principal = Depends(require_principal), db: DBSession = Depends(get_db)) -> dict:
+    if not _can_manage_bolna(who):
+        raise HTTPException(403, "Only the family or the care team can disconnect Bolna.")
+    s = get_settings()
+    if bolna_link.status(db, s)["source"] != "app":
+        raise HTTPException(409, "No key was added in the app. A key in .env is changed in the .env file.")
+    out = bolna_link.disconnect(db, s, who.name)
+    for pid in who.parent_ids:
+        people.log(db, pid, f"{who.name} disconnected Bolna: calls are simulated", kind="settings", actor=who.user)
+    return out
 
 
 # ---------------------------------------------------------------- live updates for all three apps
@@ -188,7 +272,7 @@ async def live(request: Request, who: Principal = Depends(require_principal)) ->
                 except TimeoutError:
                     yield ": keep-alive\n\n"
                     continue
-                if event.get("type") == "call_mode":  # the shared credits switch: every app shows it
+                if event.get("type") in ("call_mode", "profiles"):  # shared switch, profiles added/removed
                     yield format_sse(event)
                     continue
                 pid = event.get("parent_id")
@@ -760,7 +844,7 @@ async def care_ops(who: Principal = Depends(require_clinic), db: DBSession = Dep
     """Cost and duration of recent calls plus the Bolna wallet, for the care team's "behind the call" view."""
     from app.services import ops
 
-    s = get_settings()
+    s = bolna_link.merged(db, get_settings())
     return {
         "mode": "demo" if s.demo_mode else "live",
         "simulated": s.demo_mode,
@@ -906,9 +990,35 @@ def add_parent(body: NewParent, who: Principal = Depends(require_principal), db:
     return service.parent_out(db, parent)
 
 
-@circle.post("/reset-demo")
-def reset_demo(who: Principal = Depends(require_principal), db: DBSession = Depends(get_db)) -> dict:
+@circle.delete("/parents/{parent_id}")
+def remove_parent(parent_id: str, who: Principal = Depends(require_principal), db: DBSession = Depends(get_db)) -> dict:
+    """A family member removes this parent's whole profile (calls, history, circle, elder login)."""
+    parent = db.get(Parent, parent_id)
+    if not parent or parent_id not in who.parent_ids:
+        raise HTTPException(404, "No such profile")
+    if not who.staff and who.role_for(parent_id) != "family":
+        raise HTTPException(403, "Only a family member in this circle can remove the profile")
+    name = parent.call_name
+    people.delete_parent(db, parent)
+    bus.publish({"type": "profiles", "by": who.name})
+    return {"removed": name}
+
+
+@circle.post("/start-over")
+def start_over(who: Principal = Depends(require_principal), db: DBSession = Depends(get_db)) -> dict:
+    """Delete every profile and account on this server, so Smriti starts from the welcome screens."""
     if not who.staff and not (who.user and who.user.is_demo):
-        raise HTTPException(403, "Only demo accounts can reset demo data")
-    removed = people.reset_created(db)
+        raise HTTPException(403, "Only demo accounts can start over")
+    removed = people.start_over(db)
+    bus.publish({"type": "profiles", "by": who.name})
     return {"removed": removed}
+
+
+@auth.post("/sample-family", status_code=201)
+def sample_family(db: DBSession = Depends(get_db)) -> dict:
+    """Add the sample family (Appa with 8 weeks of calls, Ravi, Priya, Dr. Meera) to explore without setup."""
+    from app.family import seed
+
+    parent = seed.seed(db, get_settings())
+    bus.publish({"type": "profiles", "by": "Smriti"})
+    return {"parent": parent.call_name}

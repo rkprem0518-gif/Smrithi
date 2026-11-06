@@ -54,12 +54,17 @@ async def poll_once(settings: Settings, client: BolnaClient) -> int:
 
 
 async def run_poller(settings: Settings, stop: asyncio.Event) -> None:
+    """Runs on every server; it only contacts Bolna while an account is connected (.env or added in the app)."""
+    from app.family import bolna_link
+
     log("poller_started", interval_s=settings.poll_interval_seconds)
-    async with BolnaClient.from_settings(settings) as client:
-        while not stop.is_set():
-            try:
-                await poll_once(settings, client)
-            except Exception as exc:  # never let the loop die
-                log("poller_crash", error=type(exc).__name__)
-            with suppress(TimeoutError):
-                await asyncio.wait_for(stop.wait(), timeout=settings.poll_interval_seconds)
+    while not stop.is_set():
+        try:
+            current = bolna_link.current(settings)
+            if not current.demo_mode:
+                async with BolnaClient.from_settings(current) as client:
+                    await poll_once(current, client)
+        except Exception as exc:  # never let the loop die
+            log("poller_crash", error=type(exc).__name__)
+        with suppress(TimeoutError):
+            await asyncio.wait_for(stop.wait(), timeout=settings.poll_interval_seconds)

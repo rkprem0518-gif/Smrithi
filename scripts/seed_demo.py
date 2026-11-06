@@ -12,4 +12,4 @@ from app.settings import get_settings
 if __name__ == "__main__":
     init_db()
     for sid in seed_demo_sessions(get_settings()):
-        print(f"seeded {sid}  ->  /report.html?id={sid}")
+        print(f"seeded {sid}  ->  /smriti.html#/memreport/{sid}")

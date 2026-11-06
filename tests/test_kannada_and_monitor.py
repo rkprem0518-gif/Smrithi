@@ -88,13 +88,18 @@ def test_silent_recall_then_close_is_reached(cfg) -> None:
 
 
 def test_ui_languages_have_the_same_keys() -> None:
-    import json
+    """The app's Hindi and Kannada screens translate the same English lines (app/web/smriti-i18n.js)."""
+    import re
     from pathlib import Path
 
-    folder = Path(__file__).resolve().parent.parent / "app" / "web" / "i18n"
-    keys = {p.stem: set(json.loads(p.read_text(encoding="utf-8"))) for p in folder.glob("*.json")}
-    assert set(keys) == {"en", "hi", "kn"}
-    assert keys["en"] == keys["hi"] == keys["kn"]
+    src = (Path(__file__).resolve().parent.parent / "app" / "web" / "smriti-i18n.js").read_text(encoding="utf-8")
+    start = src.index("const STR = {")
+    block = src[start:src.index("\n};", start)]
+    hi, kn = block[block.index("  hi: {"):block.index("  kn: {")], block[block.index("  kn: {"):]
+    key = re.compile(r'"((?:[^"\\]|\\.)*)"\s*:')
+    hi_keys, kn_keys = set(key.findall(hi)), set(key.findall(kn))
+    assert len(hi_keys) > 50
+    assert hi_keys == kn_keys, {"only_hindi": sorted(hi_keys - kn_keys), "only_kannada": sorted(kn_keys - hi_keys)}
 
 
 def test_report_has_kannada_text(cfg) -> None:

@@ -34,10 +34,12 @@ class Settings(BaseSettings):
     bolna_multilingual: bool = False
     bolna_agent_id_checkin: str = ""  # weekly check-in agent (create_agent.py --kind checkin)
     bolna_agent_id_family: str = ""  # calls the son/daughter after the care desk approves (--kind family)
-    seed_family_demo: bool = True  # create the demo parent "Appa" with 8 weeks of history at startup
+    seed_family_demo: bool = False  # 1 = add the sample family (Appa, 8 weeks of history) at startup
     family_port: int = 8000  # scripts/run_demo.py serves the same app on three ports, one per kind of user
     elder_port: int = 8001
     clinic_port: int = 8002
+    one_address: bool = False  # serve all three apps from one address: /, /elder/, /care/ (hosted, e.g. Render)
+    allow_app_keys: bool = True  # family or care team may connect a Bolna account from inside the app
     scheduler_enabled: bool = False  # run scheduled check-ins automatically (off: use "Run now"; no surprise calls)
     bolna_from_number: str = ""
     bolna_webhook_token: str = "change-me"

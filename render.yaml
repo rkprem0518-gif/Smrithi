@@ -1,7 +1,14 @@
-# Render blueprint: New > Blueprint > pick this repo.
-# Starts in offline demo mode. For live calls set DEMO_MODE=0, BOLNA_API_KEY, BOLNA_AGENT_ID and
-# PUBLIC_BASE_URL (this service's https URL), then run `python scripts/create_agent.py --update`.
-# Free-tier disks are wiped on redeploy: fine for a demo, attach a disk for persistence.
+# Render blueprint: Render dashboard > New > Blueprint > pick this repo > Apply. Nothing to fill in.
+#
+# One web service serves all three apps on one address:
+#   https://<service>.onrender.com/smriti.html   family     (log in as Ravi or Priya)
+#   https://<service>.onrender.com/elder/        elder      (log in as Appa)
+#   https://<service>.onrender.com/care/         care team  (log in as Dr. Meera)
+#
+# Calls are simulated until someone connects a Bolna account in the family app (Connect Bolna, under the
+# Real calls switch). PUBLIC_BASE_URL is taken from Render's own URL, so Bolna's end-of-call webhook works.
+# Free plan: the service sleeps after 15 idle minutes (the first visit then takes about a minute) and its disk
+# resets on every deploy, which brings back the sample family. Fine for a demo.
 services:
   - type: web
     name: smriti
@@ -13,22 +20,14 @@ services:
         value: production
       - key: DEMO_MODE
         value: "1"
+      - key: ONE_ADDRESS
+        value: "1"
       - key: SECRET_SALT
         generateValue: true
       - key: ADMIN_REVIEW_TOKEN
         generateValue: true
       - key: BOLNA_WEBHOOK_TOKEN
         generateValue: true
-      - key: PUBLIC_BASE_URL
-        sync: false
-      - key: BOLNA_API_KEY
-        sync: false
-      - key: BOLNA_AGENT_ID
-        sync: false
-      - key: BOLNA_FROM_NUMBER
-        sync: false
-      - key: HELPLINE_TEXT
-        sync: false
       - key: MAX_CALLS_PER_IP_PER_DAY
         value: "3"
       - key: MAX_CALL_MINUTES

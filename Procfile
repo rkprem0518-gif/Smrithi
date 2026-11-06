@@ -1,1 +1,1 @@
-web: uvicorn app.main:app --host 0.0.0.0 --port $PORT
+web: HOST=0.0.0.0 ONE_ADDRESS=1 python scripts/run_demo.py
