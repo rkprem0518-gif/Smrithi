@@ -27,21 +27,22 @@ def run(*cmd: str) -> None:
 
 def main() -> int:
     if sys.version_info < (3, 11):  # noqa: UP036  (a reviewer may run this with an older Python)
-        print(f"Smriti needs Python 3.11 or newer; this is {sys.version.split()[0]}. Install 3.12 from python.org.")
+        print(f"Smriti needs Python 3.11 or newer; this is {sys.version.split()[0]}.", flush=True)
+        print("Install Python 3.12 from python.org, then run: python start.py", flush=True)
         return 1
     if not PY.exists():
-        print("Creating a virtual environment in .venv ...")
+        print("Creating a virtual environment in .venv ...", flush=True)
         venv.EnvBuilder(with_pip=True).create(VENV)
     stamp = VENV / ".smriti-installed"
     req = ROOT / "requirements.txt"
     if not stamp.exists() or stamp.stat().st_mtime < req.stat().st_mtime:
-        print("Installing packages (first run takes a minute) ...")
+        print("Installing packages (first run takes a minute) ...", flush=True)
         run(str(PY), "-m", "pip", "install", "--disable-pip-version-check", "-q", "-r", str(req))
         stamp.touch()
     env_file = ROOT / ".env"
     if not env_file.exists():
         shutil.copy(ROOT / ".env.example", env_file)
-        print("Created .env from .env.example (offline mode: calls are simulated, no keys needed).")
+        print("Created .env from .env.example (offline mode: calls are simulated, no keys needed).", flush=True)
     args = sys.argv[1:]
     if "--reset" in args:
         args.remove("--reset")

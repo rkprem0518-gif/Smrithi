@@ -59,12 +59,13 @@ flowchart LR
 
 ## Demo in 5 minutes
 
-One process serves **three apps on three ports**, all live-synced: anything done in one app shows up in the others within a second.
+One command sets everything up and serves **three apps on three ports**, all live-synced: anything done in one app shows up in the others within a second. No keys needed (calls are simulated). Needs Python 3.11+.
 
 ```bash
-python scripts/seed_family.py --reset     # sample family: Appa (Kannada), Ravi, Priya, Dr. Meera
-python scripts/run_demo.py                # family :8000 · elder :8001 · care team :8002
+python start.py --open        # first run: makes .venv, installs packages, creates .env, opens the three apps
 ```
+
+`python start.py --reset` gives a fresh sample family (Appa, Ravi, Priya, Dr. Meera) before starting. No Python? `docker compose up --build`, then open the same three addresses.
 
 | Open | Log in as (demo button, no password) | Try this |
 |---|---|---|
@@ -97,6 +98,7 @@ python scripts/run_demo.py                # family :8000 · elder :8001 · care 
 - **Reports:** mood across 8 weeks, what came up, how many calls were completed, and a **printable one-page doctor summary** (only if the parent allows sharing).
 - **Schedules:** "every day at 8 pm, ask: *did you take your BP tablet?*", with **Run now**.
 - **Family circle:** members, invites by phone number or **Smriti ID**, and contacts that connect when both people add each other.
+- **Names Smriti uses:** set your own name, the parent's name, what you call them ("Amma") and how Smriti greets them ("Kamala ji"). Smriti says these on every call, for example "Is there anything you'd like me to tell Prem?"
 - **+ Add a parent:** name, age, city, preferred language (11), relation and sharing level. They get their own elder login. Switch between parents from the sidebar.
 - **History:** everything that happened in the circle, live.
 
@@ -249,16 +251,28 @@ More detail: [docs/architecture.md](docs/architecture.md).
 
 ## Run it yourself
 
-**Offline, with no keys (about 2 minutes):**
+**Offline, with no keys: one command (Windows, macOS, Linux; Python 3.11+):**
 
 ```bash
-python -m venv .venv
-.venv\Scripts\activate                 # Linux/macOS: source .venv/bin/activate
-pip install -r requirements-dev.txt
-copy .env.example .env                 # Linux/macOS: cp .env.example .env   (DEMO_MODE=1)
-python scripts/run_demo.py             # family :8000 · elder :8001 · care team :8002
-pytest                                 # 328 tests, Bolna mocked
+git clone https://github.com/rkprem0518-gif/Smrithi.git
+cd Smrithi
+python start.py --open
 ```
+
+`start.py` creates `.venv`, installs the packages, copies `.env.example` to `.env` (offline mode), and starts the three apps:
+
+| App | Address | Log in as |
+|---|---|---|
+| Family | http://localhost:8000/smriti.html | Ravi Rao or Priya Rao |
+| Elder | http://localhost:8001/smriti.html | Raghunath Rao (Appa) |
+| Care team | http://localhost:8002/smriti.html | Dr. Meera Iyer |
+
+- **Stop:** Ctrl+C. **Start again:** `python start.py`. **Fresh sample family:** `python start.py --reset`.
+- **Ports busy?** It says which ones. Close the other window, or set `FAMILY_PORT`, `ELDER_PORT` and `CLINIC_PORT` in `.env`.
+- **No Python?** Run `docker compose up --build` and open the same addresses.
+- **Tests:** `.venv/Scripts/python -m pip install -r requirements-dev.txt`, then `.venv/Scripts/python -m pytest`. On macOS/Linux use `.venv/bin/python`. Bolna is always mocked in the tests.
+
+**Hosting:** Smriti needs a server that keeps running (live updates between the apps, the job that fetches call results, a database file), so serverless hosts like Vercel don't fit. A container host such as Render, Railway or Fly works. [`render.yaml`](render.yaml) deploys the family app; serving all three apps from one public address is on the roadmap.
 
 **Live, with Bolna:**
 1. Put `BOLNA_API_KEY` in `.env`, then set `DEMO_MODE=0` and long random values for `SECRET_SALT`, `ADMIN_REVIEW_TOKEN` and `BOLNA_WEBHOOK_TOKEN`.
