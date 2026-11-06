@@ -228,6 +228,16 @@ class SettingsUpdate(BaseModel):
     language: str | None = None
     calls_paused: bool | None = None
     parent_id: str | None = None
+    # The names Smriti says on calls. Family members and the elder can set these.
+    full_name: str | None = Field(default=None, min_length=2, max_length=60)
+    call_name: str | None = Field(default=None, min_length=1, max_length=30)  # what the family calls them: "Amma"
+    honorific: str | None = Field(default=None, min_length=1, max_length=40)  # how Smriti greets them
+    family_name: str | None = Field(default=None, min_length=1, max_length=30)  # who Smriti passes messages to
+    relation: str | None = Field(default=None, min_length=1, max_length=20)
+
+
+class MeUpdate(BaseModel):
+    name: str = Field(min_length=2, max_length=60)
 
 
 class VisitRequest(BaseModel):
@@ -520,6 +530,14 @@ def update_settings(
         if value is not None:
             setattr(parent, name, value)
             changes.append("change the weekly call time")
+    names = {k: getattr(body, k) for k in ("full_name", "call_name", "honorific", "family_name", "relation")}
+    names = {k: v.strip() for k, v in names.items() if v is not None and v.strip()}
+    if names:
+        if not who.staff and who.role_for(parent.id) not in ("family", "elder"):
+            raise HTTPException(403, "Only the family can change these names.")
+        for k, v in names.items():
+            setattr(parent, k, v)
+        changes.append("update the names Smriti uses")
     db.add(parent)
     db.commit()
     if changes:
@@ -666,6 +684,17 @@ def _lookup(db: DBSession, query: str) -> User:
     if not user:
         raise HTTPException(404, "Nobody on Smriti with that number or ID yet. Ask them to join, then try again.")
     return user
+
+
+@circle.patch("/me")
+def update_me(body: MeUpdate, who: Principal = Depends(require_principal), db: DBSession = Depends(get_db)) -> dict:
+    """Change your own display name (shown in the apps and the history)."""
+    if not who.user:
+        raise HTTPException(400, "Log in as a person to change your name")
+    who.user.name = body.name.strip()
+    db.add(who.user)
+    db.commit()
+    return people.user_out(who.user)
 
 
 @circle.get("/me")

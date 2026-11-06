@@ -527,7 +527,16 @@ async def simulate_call(session_id: str, kind: str, settings: Settings) -> None:
         session = db.get(Session, session_id)
         if not session or session.deleted_at:
             return
-        turns = [Turn(r, t) for r, t in DEMO_TRANSCRIPTS[kind]]
+        checkin = db.exec(select(CheckIn).where(CheckIn.session_id == session.id)).first()
+        parent = db.get(Parent, checkin.parent_id) if checkin else None
+        names = {"Ravi": parent.family_name, "Appa": parent.call_name} if parent else {}
+
+        def personal(text: str) -> str:  # the demo call uses this family's own names
+            for old, new in names.items():
+                text = text.replace(old, new or old)
+            return text
+
+        turns = [Turn(r, personal(t)) for r, t in DEMO_TRANSCRIPTS[kind]]
         store_call_ops(
             db,
             session,

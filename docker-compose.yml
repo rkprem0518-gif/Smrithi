@@ -1,0 +1,19 @@
+# One command, no Python needed:   docker compose up --build
+# Then open http://localhost:8000/smriti.html (family), :8001 (elder), :8002 (care team).
+# Offline by default (simulated calls). For real Bolna calls, put your keys in .env and set DEMO_MODE=0 there.
+services:
+  smriti:
+    build: .
+    ports:
+      - "8000:8000"
+      - "8001:8001"
+      - "8002:8002"
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      HOST: 0.0.0.0
+    volumes:
+      - smriti-data:/app/data
+volumes:
+  smriti-data:

@@ -375,3 +375,30 @@ def test_reset_removes_added_parents_and_keeps_the_sample_family(demo_client) ->
     me = demo_client.get("/api/auth/me").json()
     assert [p["call_name"] for p in me["parents"]] == ["Appa"]
     assert not any(u["name"] == "Kamala Sharma" for u in demo_client.get("/api/auth/me?app=elder").json()["demo_users"])
+
+
+# ---------------------------------------------------------------- names Smriti says
+
+def test_family_sets_the_names_smriti_says(live_client) -> None:
+    route = live_client.bolna.post("/call").respond(200, json={"execution_id": "ex-names", "status": "queued"})
+    live_client.bolna.get("/user/me").respond(200, json={"wallet": 300})
+    login(live_client, "u-ravi")
+    r = live_client.patch("/api/family/settings", json={"family_name": "Prem", "honorific": "Raghu ji", "call_name": "Pappa"})
+    assert r.status_code == 200, r.text
+    assert r.json()["family_name"] == "Prem" and r.json()["call_name"] == "Pappa"
+    assert live_client.patch("/api/people/me", json={"name": "Prem Tawar"}).json()["name"] == "Prem Tawar"
+    live_client.put("/api/auth/call-mode", json={"live": True})
+    assert live_client.post("/api/family/call", json={"phone": PHONE}).status_code == 201
+    sent = json.loads(route.calls.last.request.content)["user_data"]
+    assert sent["family_name"] == "Prem" and sent["parent_name"] == "Raghu ji"
+    assert "Prem know" in sent["share_sentence"]
+    history = live_client.get("/api/family/history").json()["items"]
+    assert any("update the names Smriti uses" in h["text"] for h in history)
+
+
+def test_demo_call_uses_the_familys_own_names(demo_client) -> None:
+    login(demo_client, "u-ravi")
+    demo_client.patch("/api/family/settings", json={"family_name": "Prem"})
+    r = demo_client.post("/api/family/call", json={})
+    c = _wait_checkin(demo_client, r.json()["checkin_id"])
+    assert c["message_for_family"] and "Ravi" not in json.dumps(c)

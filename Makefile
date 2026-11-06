@@ -9,7 +9,7 @@ setup:
 	test -f .env || cp .env.example .env
 
 demo:
-	$(PY) -m uvicorn app.main:app --reload
+	$(PY) scripts/run_demo.py
 
 test:
 	$(PY) -m pytest

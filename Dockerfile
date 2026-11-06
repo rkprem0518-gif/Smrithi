@@ -3,8 +3,8 @@ FROM python:3.12-slim
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
     PIP_NO_CACHE_DIR=1 \
-    PORT=8000 \
-    DEMO_MODE=1
+    DEMO_MODE=1 \
+    HOST=0.0.0.0
 
 WORKDIR /app
 COPY requirements.txt .
@@ -21,5 +21,6 @@ RUN useradd --create-home smriti && mkdir -p /app/data && chown -R smriti /app/d
 USER smriti
 ENV DATABASE_URL=sqlite:////app/data/smriti.db
 
-EXPOSE 8000
-CMD ["sh", "-c", "uvicorn app.main:app --host 0.0.0.0 --port ${PORT}"]
+# The three apps: family :8000, elder :8001, care team :8002 (one process, live-synced).
+EXPOSE 8000 8001 8002
+CMD ["python", "scripts/run_demo.py"]

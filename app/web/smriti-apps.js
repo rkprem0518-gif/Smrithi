@@ -312,6 +312,34 @@ VIEWS.circle = async (main) => {
       <div style="margin-top:12px">${r.contacts.map((x) => `<div class="member"><div class="avatar sm">${esc(x.name[0])}</div><div style="flex:1"><b>${esc(x.name)}</b><div class="small muted">${esc(x.role_label)} · ${esc(x.smriti_id)}</div></div>
         ${x.mutual ? `<span class="chip green">Connected</span>` : x.added_you ? `<span class="chip yellow">Added you</span>` : `<span class="chip">Waiting for them</span>`}</div>`).join("") || `<p class="empty">No contacts yet.</p>`}</div></div></div></div>`;
   qr($("#qr"), me.smriti_id);
+  const p = state.parent || {};
+  const names = document.createElement("div");
+  names.className = "card";
+  names.style.marginTop = "20px";
+  names.innerHTML = `<div class="spread"><h3 style="margin:0">Names Smriti uses</h3><span class="small muted">Said out loud on every call</span></div>
+    <div class="grid g2" style="gap:12px;margin-top:6px">
+      <label class="field"><span>Your name (as Smriti says it)</span><input id="nFamily" value="${esc(p.family_name || "")}" placeholder="e.g. Prem"></label>
+      <label class="field"><span>You are their</span><input id="nRelation" value="${esc(p.relation || "")}" placeholder="son, daughter, grandchild"></label>
+      <label class="field"><span>Their full name</span><input id="nFull" value="${esc(p.full_name || "")}"></label>
+      <label class="field"><span>What you call them</span><input id="nCall" value="${esc(p.call_name || "")}" placeholder="Amma, Appa, Ajji"></label>
+      <label class="field"><span>How Smriti greets them</span><input id="nHon" value="${esc(p.honorific || "")}" placeholder="Kamala ji"></label>
+      <label class="field"><span>Your display name in the apps</span><input id="nMe" value="${esc(me.name)}"></label>
+    </div>
+    <p class="small muted" style="margin-top:10px">For example: “Is there anything you’d like me to tell <b>${esc(p.family_name || "you")}</b>?” and “Hello, <b>${esc(p.honorific || p.call_name || "")}</b>!”</p>
+    <div class="err" id="nErr" hidden></div>
+    <div class="row" style="margin-top:14px"><button class="btn" id="nSave">Save names</button></div>`;
+  main.appendChild(names);
+  $("#nSave").onclick = async () => {
+    const val = (id) => $(id).value.trim();
+    try {
+      await api("/api/family/settings", { method: "PATCH", body: { parent_id: state.parentId, family_name: val("#nFamily") || null,
+        relation: val("#nRelation") || null, full_name: val("#nFull") || null, call_name: val("#nCall") || null, honorific: val("#nHon") || null } });
+      if (val("#nMe") && val("#nMe") !== me.name) await api("/api/people/me", { method: "PATCH", body: { name: val("#nMe") } });
+      await refreshMe();
+      toast("Saved. Smriti will use these names on the next call.");
+      route();
+    } catch (e) { $("#nErr").textContent = e.message; $("#nErr").hidden = false; }
+  };
   $("#invite").onclick = () => inviteDialog();
   $("#addc").onclick = () => contactDialog();
 };

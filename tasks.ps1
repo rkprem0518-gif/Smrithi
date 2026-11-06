@@ -14,7 +14,7 @@ switch ($Task) {
         if (-not (Test-Path .env)) { Copy-Item .env.example .env }
         Write-Host "Done. Run: .\tasks.ps1 demo"
     }
-    "demo"         { & $py -m uvicorn app.main:app --reload }
+    "demo"         { & $py scripts\run_demo.py }
     "test"         { & $py -m pytest }
     "lint"         { & $py -m ruff check . }
     "create-agent" { & $py scripts\create_agent.py }
