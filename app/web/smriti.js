@@ -260,7 +260,7 @@ VIEWS.memory = async (main) => {
   const p = r.parent, mem = r.memory.slice().reverse(), last = mem[0];
   const out = last && OUTCOME[last.outcome];
   main.innerHTML = `<div class="page-head"><div><div class="eyebrow">Memory</div><h1>${esc(p.call_name)}'s memory checks</h1>
-    <p>A short, structured check on the phone, every few months. Scored by fixed rules. Never a diagnosis.</p></div>
+    <p>A short, structured check on the phone, every few weeks. Scored by fixed rules. Never a diagnosis.</p></div>
     <button class="btn ghost" id="runMemory">${ic("brain")} Start a memory check</button></div>
     <div class="grid g2"><div class="card">${last ? `<div class="eyebrow">Latest · ${fmtLong(last.at)}</div><div class="row" style="margin:6px 0 10px"><span class="dot ${out[1]}" style="width:14px;height:14px"></span><span class="result-word">${out[0]}</span></div>
       <p class="muted">${last.review_status === "pending" ? "Our care team is reviewing this now. If they agree, Smriti will call " + esc(p.family_name) + " to explain and help book a visit." : last.review_status === "reviewed" ? "Reviewed by the care team." : ""}</p>

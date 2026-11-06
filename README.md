@@ -2,7 +2,7 @@
 
 ### Every week, someone remembers.
 
-**Smriti is an AI voice companion that phones older parents in their own language, listens the way a caring nurse would, remembers what they said, and makes sure the family acts when something matters.** A short, structured memory check runs every few months as part of those regular check-ins. Smriti never diagnoses: a person on the care team reviews every concern before the family is called.
+**Smriti is an AI voice companion that phones older parents in their own language, listens the way a caring nurse would, remembers what they said, and makes sure the family acts when something matters.** A short, structured memory check runs every few weeks as part of those regular check-ins. Smriti never diagnoses: a person on the care team reviews every concern before the family is called.
 
 Built on **[Bolna](https://bolna.ai)** for the Bolna Voice AI Buildathon 2026 by **Team Epoch Zero**.
 
@@ -31,7 +31,7 @@ We call home and hear **"all fine."** Children who live in another city can't te
 flowchart LR
   A["Regular check-in call<br/>in the parent's language"] --> B["Fixed rules turn their own words<br/>into green / yellow / red flags"]
   B --> C["Care team reviews<br/>every yellow or red flag"]
-  M["Memory check every few months<br/>(10/66-based, fixed-rule scoring)"] --> C
+  M["Memory check every few weeks<br/>(10/66-based, fixed-rule scoring)"] --> C
   C -->|approve| D["Smriti calls the son or daughter<br/>and explains in plain words"]
   D --> E["Doctor's visit on<br/>the family calendar"]
   B -. "forgetting comes up twice" .-> M
@@ -39,7 +39,7 @@ flowchart LR
 
 1. **Check-ins:** Smriti calls the parent at the times the family sets, in any of 11 Indian languages. She asks how they really are, follows up on last time once, and asks the family's own questions ("Did you take your BP tablet?").
 2. **Flags:** after the call, fixed rules turn the parent's own words into flags, e.g. *"poor sleep came up in 2 calls this month."* The AI holds the conversation; it never decides a flag or a score.
-3. **Memory check:** every few months, or sooner if forgetting keeps coming up, Smriti runs a 5-minute structured memory check based on the 10/66 Dementia Research Group battery, which was designed to be fair to people with little or no schooling.
+3. **Memory check:** every few weeks (every 4 weeks by default), or sooner if forgetting keeps coming up, Smriti runs a 5-minute structured memory check based on the 10/66 Dementia Research Group battery, which was designed to be fair to people with little or no schooling.
 4. **Care team:** a person reviews every concern, with the transcript and the rule that fired.
 5. **Family:** on approval, Smriti phones the son or daughter, explains in plain words, says clearly that this is not a diagnosis, and offers to put a doctor's visit on their calendar.
 

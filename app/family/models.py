@@ -46,7 +46,7 @@ class Parent(SQLModel, table=True):
     call_weekday: int = 6  # 0 = Monday ... 6 = Sunday
     call_time: str = "10:30"  # local time, HH:MM
     interests: list[str] = Field(default_factory=list, sa_column=Column(JSON))
-    memory_check_every_days: int = 120
+    memory_check_every_days: int = 28  # the memory check runs every few weeks (sooner if forgetting comes up)
     is_demo: bool = False
     user_id: str | None = Field(default=None, index=True)  # the elder's own login (User.id)
     age: int | None = None
